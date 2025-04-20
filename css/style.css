@@ -1,0 +1,12 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #000;
+  }
+  #gameCanvas {
+    display: block;
+    touch-action: none; /* ブラウザ既定のズームやスクロールを抑制 */
+    background: #111;
+  }
+  
