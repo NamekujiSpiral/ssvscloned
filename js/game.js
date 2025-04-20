@@ -56,41 +56,39 @@
   
     let bullets = [];
   
-    // タッチ管理
-    const touches = {};
-  
-    canvas.addEventListener('touchstart', e => {
-      for (const t of e.changedTouches) {
-        // 画面を上下エリアで分割
-        const who = (t.clientY > canvas.height / 2) ? p1 : p2;
-        touches[t.identifier] = { who, startX: t.clientX };
-        // 右端エリア（発射ボタン：幅20%）なら発射
-        if (t.clientX > canvas.width * 0.8) {
-          fire(who);
-        }
+    let pointerActive = false;
+    let activePlayer = null;
+    
+    canvas.addEventListener('pointerdown', e => {
+      pointerActive = true;
+      // 押された位置で上下判定
+      activePlayer = (e.clientY > canvas.height / 2) ? p1 : p2;
+    
+      // 右端20%なら発射
+      if (e.clientX > canvas.width * 0.8) {
+        fire(activePlayer);
       }
-      e.preventDefault();
     });
-  
-    canvas.addEventListener('touchmove', e => {
-      for (const t of e.changedTouches) {
-        const info = touches[t.identifier];
-        if (!info) continue;
-        // スライド量だけXを移動
-        const dx = t.clientX - info.startX;
-        info.who.x = Math.max(0,
-          Math.min(canvas.width - info.who.width, info.who.x + dx)
-        );
-        info.startX = t.clientX;
-      }
-      e.preventDefault();
+    
+    canvas.addEventListener('pointermove', e => {
+      if (!pointerActive || !activePlayer) return;
+      // スライド移動：中央合わせ
+      activePlayer.x = Math.max(0,
+        Math.min(canvas.width - activePlayer.width,
+          e.clientX - activePlayer.width / 2
+        )
+      );
     });
-  
-    canvas.addEventListener('touchend', e => {
-      for (const t of e.changedTouches) {
-        delete touches[t.identifier];
-      }
-      e.preventDefault();
+    
+    canvas.addEventListener('pointerup', e => {
+      pointerActive = false;
+      activePlayer = null;
+    });
+    
+    // （念のため）pointer がキャンセルされたときも同様にリセット
+    canvas.addEventListener('pointercancel', () => {
+      pointerActive = false;
+      activePlayer = null;
     });
   
     // 発射処理
