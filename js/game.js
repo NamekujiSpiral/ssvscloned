@@ -158,7 +158,7 @@
     // コストバー分割線
     const barH = 18;
     ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-    ctx.lineWidth = 3; // 太めに
+    ctx.lineWidth = 4; // 太めに
     for (let j = 1; j < 10; j++) {
       const xLine = j * (canvas.width / 10);
       // 上部
