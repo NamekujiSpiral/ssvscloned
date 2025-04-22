@@ -176,9 +176,9 @@
     ctx.font = `${barH * 0.8}px sans-serif`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText(p2.cost.toFixed(1), 4, bhPx + 2);
+    ctx.fillText(Math.floor(p2.cost), 4, bhPx + 2);
     ctx.textBaseline = 'bottom';
-    ctx.fillText(p1.cost.toFixed(1), 4, canvas.height - bhPx - 2);
+    ctx.fillText(Math.floor(p1.cost), 4, canvas.height - bhPx - 2);
 
     requestAnimationFrame(loop);
   }
