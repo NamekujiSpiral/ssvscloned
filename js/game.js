@@ -6,10 +6,12 @@
   const VIRTUAL_WIDTH = 1800;
   const VIRTUAL_HEIGHT = 3200;
 
+  // ボタン領域の仮想高さ
   const virtualButtonHeight = 320;
   const marginVirtual = 130; // キャラとボタンの間隔（仮想単位）
 
-  // スキルコスト設定
+  // スキル設定
+  const skillNames = ['技1', '技2', '技3'];
   const skillCosts = [1, 3, 6];
 
   class Player {
@@ -76,13 +78,10 @@
       drawW = winW;
       drawH = drawW / targetRatio;
     }
-    // 内部解像度を画面解像度に合わせる
     canvas.width = drawW;
     canvas.height = drawH;
-    // 表示サイズも一致させる
     canvas.style.width = drawW + 'px';
     canvas.style.height = drawH + 'px';
-    // スケール計算
     scaleX = drawW / VIRTUAL_WIDTH;
     scaleY = drawH / VIRTUAL_HEIGHT;
   }
@@ -121,6 +120,8 @@
   function loop(now) {
     const dt = (now - last) / 1000; last = now;
     ctx.clearRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+
+    // ゲーム描画（仮想解像度）
     ctx.save();
     ctx.scale(scaleX, scaleY);
     p1.update(dt); p2.update(dt);
@@ -133,20 +134,51 @@
     });
     ctx.restore();
 
-    // UI描画
+    // UI描画（ボタン＆コストバー）
     const bhPx = virtualButtonHeight * scaleY;
     const bwPx = canvas.width / 3;
+    // 技ボタン
+    ctx.font = `${Math.floor(bhPx * 0.4)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
     for (let i = 0; i < 3; i++) {
-      ctx.fillStyle = p2.color;
-      ctx.fillRect(i * bwPx, 0, bwPx - 2, bhPx - 2);
-      ctx.fillStyle = p1.color;
-      ctx.fillRect(i * bwPx, canvas.height - bhPx, bwPx - 2, bhPx - 2);
+      const x0 = i * bwPx;
+      // ボタン色
+      ctx.fillStyle = (p2.cost >= skillCosts[i]) ? p2.color : 'rgba(200, 200, 200, 0.9)';
+      ctx.fillRect(x0, 0, bwPx - 2, bhPx - 2);
+      ctx.fillStyle = (p1.cost >= skillCosts[i]) ? p1.color : 'rgba(200, 200, 200, 0.9)';
+      ctx.fillRect(x0, canvas.height - bhPx, bwPx - 2, bhPx - 2);
+      // ラベル表示
+      ctx.fillStyle = '#fff';
+      const label = `${skillNames[i]}(${skillCosts[i]})`;
+      ctx.fillText(label, x0 + bwPx / 2, bhPx / 2);
+      ctx.fillText(label, x0 + bwPx / 2, canvas.height - bhPx / 2);
     }
+
+    // コストバー分割線
     const barH = 18;
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 3; // 太めに
+    for (let j = 1; j < 10; j++) {
+      const xLine = j * (canvas.width / 10);
+      // 上部
+      ctx.beginPath(); ctx.moveTo(xLine, bhPx + 2); ctx.lineTo(xLine, bhPx + 2 + barH); ctx.stroke();
+      // 下部
+      ctx.beginPath(); ctx.moveTo(xLine, canvas.height - bhPx - 2 - barH); ctx.lineTo(xLine, canvas.height - bhPx - 2); ctx.stroke();
+    }
+    // コストゲージ
     ctx.fillStyle = p2.color;
     ctx.fillRect(0, bhPx + 2, canvas.width * (p2.cost / p2.maxCost), barH);
     ctx.fillStyle = p1.color;
     ctx.fillRect(0, canvas.height - bhPx - 2 - barH, canvas.width * (p1.cost / p1.maxCost), barH);
+    // コスト数値表示
+    ctx.fillStyle = '#fff';
+    ctx.font = `${barH * 0.8}px sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(p2.cost.toFixed(1), 4, bhPx + 2);
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(p1.cost.toFixed(1), 4, canvas.height - bhPx - 2);
 
     requestAnimationFrame(loop);
   }
