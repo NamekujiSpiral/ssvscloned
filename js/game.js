@@ -14,6 +14,15 @@
   const skillNames = ['技1', '技2', '技3'];
   const skillCosts = [1, 3, 6];
 
+  // ゲーム状態
+  let gameOver = false;
+  let breakTarget = null;
+  let breakProgress = 0;
+  const BREAK_DURATION = 0.5;
+
+  // 押しているボタン情報
+  let pressedButton = null;
+
   class Player {
     constructor(y, color) {
       this.size = 200;
@@ -28,14 +37,19 @@
       this.costRate = 0.5;
     }
     update(dt) {
-      if (!this.alive) return;
+      if (!this.alive || gameOver) return;
       this.x = Math.max(0, Math.min(VIRTUAL_WIDTH - this.size, this.x + this.direction * this.speed));
       this.cost = Math.min(this.maxCost, this.cost + dt * this.costRate);
     }
-    draw() {
+    draw(alpha = 1, scale = 1) {
       if (!this.alive) return;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      const w = this.size * scale;
+      const h = this.size * scale;
       ctx.fillStyle = this.color;
-      ctx.fillRect(this.x, this.y, this.size, this.size);
+      ctx.fillRect(this.x + (this.size - w)/2, this.y + (this.size - h)/2, w, h);
+      ctx.restore();
     }
   }
 
@@ -48,7 +62,7 @@
       this.size = [100, 200, 300][side];
     }
     update(dt) {
-      this.y += this.vy * dt * 60;
+      if (!gameOver) this.y += this.vy * dt * 60;
     }
     draw() {
       ctx.fillStyle = this.owner.color;
@@ -66,7 +80,7 @@
   // キャンバスとスケール
   let scaleX = 1, scaleY = 1;
   function resize() {
-    const winW = window.innerWidth; const winH = window.innerHeight;
+    const winW = window.innerWidth, winH = window.innerHeight;
     const ratio = VIRTUAL_WIDTH / VIRTUAL_HEIGHT;
     let drawW, drawH;
     if (winW / winH > ratio) { drawH = winH; drawW = drawH * ratio; }
@@ -79,7 +93,7 @@
   resize();
 
   function fire(player, side) {
-    if (player.cost < skillCosts[side]) return;
+    if (player.cost < skillCosts[side] || gameOver) return;
     player.cost -= skillCosts[side];
     const bx = player.x + player.size/2;
     const by = player.y + (player === p1 ? -player.size/2 : player.size + player.size/2);
@@ -87,12 +101,23 @@
     bullets.push(new Bullet(bx, by, vy, player, side));
   }
 
+  function onHit(target) {
+    gameOver = true;
+    breakTarget = target;
+    bullets = [];
+  }
+
   function checkHit(b) {
     const target = b.owner === p1 ? p2 : p1;
+    if (!target.alive || gameOver) return false;
     const half = b.size/2;
-    if (!target.alive) return false;
-    return !(b.x + half < target.x || b.x - half > target.x + target.size ||
-             b.y + half < target.y || b.y - half > target.y + target.size);
+    if (!(b.x + half < target.x || b.x - half > target.x + target.size ||
+          b.y + half < target.y || b.y - half > target.y + target.size)) {
+      target.alive = false;
+      onHit(target);
+      return true;
+    }
+    return false;
   }
 
   canvas.addEventListener('pointerdown', e => {
@@ -100,11 +125,26 @@
     const x = (e.clientX - r.left) / scaleX;
     const y = (e.clientY - r.top) / scaleY;
     const idx = Math.floor(x / (VIRTUAL_WIDTH / 3));
-    if (y < virtualButtonHeight) { fire(p2, idx); return; }
-    if (y > VIRTUAL_HEIGHT - virtualButtonHeight) { fire(p1, idx); return; }
-    const pl = y > VIRTUAL_HEIGHT/2 ? p1 : p2;
-    pl.direction = x < VIRTUAL_WIDTH/2 ? -1 : 1;
+    if (y < virtualButtonHeight) { pressedButton = { player: p2, idx }; return; }
+    if (y > VIRTUAL_HEIGHT - virtualButtonHeight) { pressedButton = { player: p1, idx }; return; }
+    if (!gameOver) {
+      const pl = y > VIRTUAL_HEIGHT/2 ? p1 : p2;
+      pl.direction = x < VIRTUAL_WIDTH/2 ? -1 : 1;
+    }
   });
+  canvas.addEventListener('pointerup', e => {
+    if (pressedButton && !gameOver) {
+      const r = canvas.getBoundingClientRect();
+      const x = (e.clientX - r.left) / scaleX;
+      const y = (e.clientY - r.top) / scaleY;
+      const { player: pl, idx } = pressedButton;
+      if ((pl === p2 && y < virtualButtonHeight) || (pl === p1 && y > VIRTUAL_HEIGHT - virtualButtonHeight)) {
+        fire(pl, idx);
+      }
+    }
+    pressedButton = null;
+  });
+  canvas.addEventListener('pointercancel', () => { pressedButton = null; });
 
   let last = performance.now();
   function loop(now) {
@@ -114,55 +154,72 @@
     // ゲーム世界描画
     ctx.save(); ctx.scale(scaleX, scaleY);
     p1.update(dt); p2.update(dt);
-    p1.draw(); p2.draw();
-    bullets.forEach(b => b.update(dt));
-    bullets = bullets.filter(b => { b.draw(); if (checkHit(b)) { b.owner.alive = false; return false; } return !b.isOffscreen(); });
+    if (gameOver && breakTarget) {
+      breakProgress += dt;
+      const t = Math.min(1, breakProgress / BREAK_DURATION);
+      const alpha = 1 - t;
+      const scale = 1 - t;
+      p1.draw(); p2.draw();
+      breakTarget.draw(alpha, scale);
+      if (t >= 1) {
+        alert((breakTarget === p1 ? '上側のプレイヤー' : '下側のプレイヤー') + ' の勝利！');
+        location.reload();
+        return;
+      }
+    } else {
+      p1.draw(); p2.draw();
+      bullets.forEach(b => b.update(dt));
+      bullets = bullets.filter(b => { b.draw(); checkHit(b); return !b.isOffscreen(); });
+    }
     ctx.restore();
 
     // UI描画
     const bhPx = virtualButtonHeight * scaleY;
     const bwPx = canvas.width / 3;
-    // 技ボタンとラベル
-    ctx.font = `${Math.floor(bhPx*0.3)}px sans-serif`;
-    ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
+    ctx.font = `${Math.floor(bhPx * 0.3)}px sans-serif`;
+    ctx.textAlign = 'center';
     for (let i = 0; i < 3; i++) {
       const x0 = i * bwPx;
       // ボタン色
-      ctx.fillStyle = (p2.cost >= skillCosts[i]) ? p2.color : 'rgba(200,200,200,0.9)';
-      ctx.fillRect(x0, 0, bwPx-2, bhPx-2);
-      ctx.fillStyle = (p1.cost >= skillCosts[i]) ? p1.color : 'rgba(200,200,200,0.9)';
-      ctx.fillRect(x0, canvas.height-bhPx, bwPx-2, bhPx-2);
-      // 技名
+      const color2 = (p2.cost >= skillCosts[i]) ? p2.color : 'rgba(200,200,200,0.9)';
+      const color1 = (p1.cost >= skillCosts[i]) ? p1.color : 'rgba(200,200,200,0.9)';
+      ctx.fillStyle = color2; ctx.fillRect(x0, 0, bwPx - 2, bhPx - 2);
+      ctx.fillStyle = color1; ctx.fillRect(x0, canvas.height - bhPx, bwPx - 2, bhPx - 2);
+      // 押している間は暗いオーバーレイ
+      if (pressedButton && pressedButton.player === p2 && pressedButton.idx === i) {
+        ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(x0, 0, bwPx - 2, bhPx - 2);
+      }
+      if (pressedButton && pressedButton.player === p1 && pressedButton.idx === i) {
+        ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(x0, canvas.height - bhPx, bwPx - 2, bhPx - 2);
+      }
+      // 技名とコスト
       ctx.fillStyle = '#fff';
       ctx.fillText(skillNames[i], x0 + bwPx/2, bhPx * 0.35);
-      ctx.fillText(skillNames[i], x0 + bwPx/2, canvas.height - bhPx + bhPx * 0.35);
-      // コスト数値
       ctx.fillText(skillCosts[i], x0 + bwPx/2, bhPx * 0.75);
+      ctx.fillText(skillNames[i], x0 + bwPx/2, canvas.height - bhPx + bhPx * 0.35);
       ctx.fillText(skillCosts[i], x0 + bwPx/2, canvas.height - bhPx + bhPx * 0.75);
     }
 
     // コストバー分割線
     const barH = 18;
-    ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 3;
-    for (let j=1; j<10; j++){
-      const xL = j*(canvas.width/10);
-      ctx.beginPath(); ctx.moveTo(xL,bhPx+2); ctx.lineTo(xL,bhPx+2+barH); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(xL,canvas.height-bhPx-2-barH); ctx.lineTo(xL,canvas.height-bhPx-2); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 5;
+    for (let j = 1; j < 10; j++) {
+      const xL = j * (canvas.width / 10);
+      ctx.beginPath(); ctx.moveTo(xL, bhPx + 2); ctx.lineTo(xL, bhPx + 2 + barH); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(xL, canvas.height - bhPx - 2 - barH); ctx.lineTo(xL, canvas.height - bhPx - 2); ctx.stroke();
     }
-    // コストゲージ描画
-    // 上部
+    // コストゲージ
     ctx.fillStyle = p2.color;
-    ctx.fillRect(0,bhPx+2,canvas.width*(p2.cost/p2.maxCost),barH);
-    if (p2.cost >= p2.maxCost) { ctx.fillStyle='rgba(255,255,255,0.3)'; ctx.fillRect(0,bhPx+2,canvas.width,barH); }
-    // 下部
+    ctx.fillRect(0, bhPx + 2, canvas.width * (p2.cost / p2.maxCost), barH);
+    if (p2.cost >= p2.maxCost) { ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(0, bhPx + 2, canvas.width, barH); }
     ctx.fillStyle = p1.color;
-    ctx.fillRect(0,canvas.height-bhPx-2-barH,canvas.width*(p1.cost/p1.maxCost),barH);
-    if (p1.cost >= p1.maxCost) { ctx.fillStyle='rgba(255,255,255,0.3)'; ctx.fillRect(0,canvas.height-bhPx-2-barH,canvas.width,barH); }
+    ctx.fillRect(0, canvas.height - bhPx - 2 - barH, canvas.width * (p1.cost / p1.maxCost), barH);
+    if (p1.cost >= p1.maxCost) { ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(0, canvas.height - bhPx - 2 - barH, canvas.width, barH); }
 
     // コスト表示 n/10
-    ctx.fillStyle='#fff'; ctx.font=`${barH*0.8}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(`${Math.floor(p2.cost)}/${p2.maxCost}`, canvas.width/2, bhPx+2+barH/2);
-    ctx.fillText(`${Math.floor(p1.cost)}/${p1.maxCost}`, canvas.width/2, canvas.height-bhPx-2-barH/2);
+    ctx.fillStyle = '#fff'; ctx.font = `${barH * 0.8}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(`${Math.floor(p2.cost)}/${p2.maxCost}`, canvas.width / 2, bhPx + 2 + barH / 2);
+    ctx.fillText(`${Math.floor(p1.cost)}/${p1.maxCost}`, canvas.width / 2, canvas.height - bhPx - 2 - barH / 2);
 
     requestAnimationFrame(loop);
   }
