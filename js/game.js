@@ -3,8 +3,9 @@
   const ctx = canvas.getContext('2d');
 
   // カスタムフォント読み込み
-  const gontaFont = new FontFace('Gonta', 'url("../data/FZゴンタかな.otf")');
-  gontaFont.load().then(font => document.fonts.add(font));
+  // GitHub Pages ではルートからの絶対パスを使います
+  const gontaFont = new FontFace('Gonta', 'url("/data/FZゴンタかな.otf")');
+  gontaFont.load().then(font => document.fonts.add(font)).catch(err => console.error('Font load failed:', err));
 
   // 仮想解像度
   const VIRTUAL_WIDTH = 1800;
@@ -27,7 +28,7 @@
     { name: 'キャラ2', color: '#fa4', skills: [
       { name: 'ショット', cost: 2, size: 80, speed: 12, behavior: 'straight' },
       { name: 'だましレフト', cost: 3, size: 80, speed: 12, behavior: 'curveLeft' },
-      { name: 'スピードショット', cost: 7, size: 80, speed: 40, behavior: 'straight' }
+      { name: 'スピードショット', cost: 7, size: 80, speed: 50, behavior: 'straight' }
     ]}
   ];
 
@@ -170,7 +171,7 @@
       const y = (e.clientY - rect.top) / scaleY;
       const idxUp = Math.floor(x / (VIRTUAL_WIDTH / 3));
       const { player, idx } = info;
-      // 同じボタン領域上で離したときのみ発射
+      // 押し始めと同じボタンで離した場合のみ発射
       if ((player === p2 && y < virtualButtonHeight && idxUp === idx) ||
           (player === p1 && y > VIRTUAL_HEIGHT - virtualButtonHeight && idxUp === idx)) {
         fire(player, idx);
