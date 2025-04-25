@@ -4,7 +4,7 @@
 
   // カスタムフォント読み込み
   // GitHub Pages ではルートからの絶対パスを使います
-  const gontaFont = new FontFace('Gonta', 'url("/data/FZゴンタかな.otf")');
+  const gontaFont = new FontFace('Gonta', 'url("/ssvscloned/data/FZゴンタかな.otf")');
   gontaFont.load().then(font => document.fonts.add(font)).catch(err => console.error('Font load failed:', err));
 
   // 仮想解像度
