@@ -3,7 +3,7 @@
   const ctx = canvas.getContext('2d');
 
   // カスタムフォント読み込み
-  const gontaFont = new FontFace('Gonta', 'url("/data/FZゴンタかな.otf")');
+  const gontaFont = new FontFace('Gonta', 'url("/ssvscloned/data/FZゴンタかな.otf")');
   gontaFont.load().then(font => document.fonts.add(font)).catch(err => console.error('Font load failed:', err));
 
   // 仮想解像度設定
