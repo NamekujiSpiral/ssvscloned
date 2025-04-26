@@ -40,12 +40,24 @@
   ];
   const playerColors = ['#4af', '#fa4'];
 
+  // メニュー状態
+  let menuOpen = false;
+  let menuX = VIRTUAL_WIDTH;
+  const MENU_WIDTH = 600;
+  let swipeStart = null;
+
   // ゲーム状態
   let gameOver = false;
   let breakTarget = null;
   let breakProgress = 0;
   const BREAK_DURATION = 0.5;
+
+  // 多重タッチ用ボタン記録
   const pressedButtons = new Map();
+
+  // 選択キャラ
+  let selectedChar1 = 2;
+  let selectedChar2 = 3;
 
   class Player {
     constructor(y, charIndex, color) {
@@ -90,7 +102,6 @@
     }
     update(dt) {
       if (gameOver) return;
-      // 挙動切替
       if ((this.behavior === 'curveLeft' || this.behavior === 'curveRight') && !this.passed) {
         if ((this.vy < 0 && this.y < VIRTUAL_HEIGHT / 2) || (this.vy > 0 && this.y > VIRTUAL_HEIGHT / 2)) {
           this.passed = true;
@@ -122,12 +133,10 @@
     isOff() { return this.y < 0 || this.y > VIRTUAL_HEIGHT; }
   }
 
-  // プレイヤー生成
-  const p1 = new Player(VIRTUAL_HEIGHT - virtualButtonHeight - marginVirtual - 200, 2, playerColors[0]);
-  const p2 = new Player(virtualButtonHeight + marginVirtual, 3, playerColors[1]);
+  const p1 = new Player(VIRTUAL_HEIGHT - virtualButtonHeight - marginVirtual - 200, selectedChar1, playerColors[0]);
+  const p2 = new Player(virtualButtonHeight + marginVirtual, selectedChar2, playerColors[1]);
   let bullets = [];
 
-  // リサイズ・スケール
   let scaleX = 1, scaleY = 1;
   function resize() {
     const w = window.innerWidth, h = window.innerHeight;
@@ -138,8 +147,54 @@
     canvas.style.width = dw + 'px'; canvas.style.height = dh + 'px';
     scaleX = dw / VIRTUAL_WIDTH; scaleY = dh / VIRTUAL_HEIGHT;
   }
-  window.addEventListener('resize', resize);
-  resize();
+  window.addEventListener('resize', resize); resize();
+
+  canvas.addEventListener('pointerdown', e => {
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / scaleX;
+    const y = (e.clientY - rect.top) / scaleY;
+    if (x > VIRTUAL_WIDTH - 50) { swipeStart = x; return; }
+    const idx = Math.floor(x / (VIRTUAL_WIDTH / 3));
+    const bh = virtualButtonHeight;
+    if (y < bh) { pressedButtons.set(e.pointerId, { player: p2, idx }); return; }
+    if (y > VIRTUAL_HEIGHT - bh) { pressedButtons.set(e.pointerId, { player: p1, idx }); return; }
+    if (!gameOver) {
+      const pl = y > VIRTUAL_HEIGHT / 2 ? p1 : p2;
+      pl.direction = x < VIRTUAL_WIDTH / 2 ? -1 : 1;
+    }
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (swipeStart != null) {
+      const dx = (e.clientX - canvas.getBoundingClientRect().left) / scaleX - swipeStart;
+      menuX = Math.min(VIRTUAL_WIDTH, VIRTUAL_WIDTH - MENU_WIDTH + dx);
+      menuOpen = true;
+    }
+  });
+  canvas.addEventListener('pointerup', e => {
+    if (swipeStart != null) {
+      swipeStart = null;
+      if (menuOpen) {
+        if (menuX > VIRTUAL_WIDTH - MENU_WIDTH / 2) closeMenu(); else menuX = VIRTUAL_WIDTH - MENU_WIDTH;
+      }
+      return;
+    }
+    const info = pressedButtons.get(e.pointerId);
+    if (info && !gameOver) {
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / scaleX;
+      const y = (e.clientY - rect.top) / scaleY;
+      const idxUp = Math.floor(x / (VIRTUAL_WIDTH / 3));
+      const { player, idx } = info;
+      if ((player === p2 && y < virtualButtonHeight && idxUp === idx) ||
+          (player === p1 && y > VIRTUAL_HEIGHT - virtualButtonHeight && idxUp === idx)) {
+        fire(player, idx);
+      }
+    }
+    pressedButtons.delete(e.pointerId);
+  });
+  canvas.addEventListener('pointercancel', e => { swipeStart = null; pressedButtons.delete(e.pointerId); });
+
+  function closeMenu() { menuOpen = false; menuX = VIRTUAL_WIDTH; }
 
   function fire(player, idx) {
     const skill = player.skills[idx];
@@ -184,37 +239,6 @@
     return false;
   }
 
-  canvas.addEventListener('pointerdown', e => {
-    const r = canvas.getBoundingClientRect();
-    const x = (e.clientX - r.left) / scaleX;
-    const y = (e.clientY - r.top) / scaleY;
-    const idx = Math.floor(x / (VIRTUAL_WIDTH / 3));
-    if (y < virtualButtonHeight) { pressedButtons.set(e.pointerId, { player: p2, idx }); return; }
-    if (y > VIRTUAL_HEIGHT - virtualButtonHeight) { pressedButtons.set(e.pointerId, { player: p1, idx }); return; }
-    if (!gameOver) {
-      const pl = y > VIRTUAL_HEIGHT / 2 ? p1 : p2;
-      pl.direction = x < VIRTUAL_WIDTH / 2 ? -1 : 1;
-    }
-  });
-
-  canvas.addEventListener('pointerup', e => {
-    const info = pressedButtons.get(e.pointerId);
-    if (info && !gameOver) {
-      const r = canvas.getBoundingClientRect();
-      const x = (e.clientX - r.left) / scaleX;
-      const y = (e.clientY - r.top) / scaleY;
-      const idxUp = Math.floor(x / (VIRTUAL_WIDTH / 3));
-      const { player, idx } = info;
-      if ((player === p2 && y < virtualButtonHeight && idxUp === idx) ||
-          (player === p1 && y > VIRTUAL_HEIGHT - virtualButtonHeight && idxUp === idx)) {
-        fire(player, idx);
-      }
-    }
-    pressedButtons.delete(e.pointerId);
-  });
-
-  canvas.addEventListener('pointercancel', e => pressedButtons.delete(e.pointerId));
-
   let last = performance.now();
   function loop(now) {
     const dt = (now - last) / 1000; last = now;
@@ -239,31 +263,44 @@
       ctx.fillStyle = us2 ? p2.color : 'rgba(200,200,200,0.9)'; ctx.fillRect(x0, y0p, bwPx - 2, bhPx - 2);
       ctx.fillStyle = us1 ? p1.color : 'rgba(200,200,200,0.9)'; ctx.fillRect(x0, y0m, bwPx - 2, bhPx - 2);
       if (isButtonPressed(p2, i)) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(x0, y0p, bwPx - 2, bhPx - 2); }
-      if (isButtonPressed(p1, i)) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(x0, y0m, bwPx - 2, bhPx - 2); }
-      ctx.fillStyle = '#fff';
-      ctx.font = `${Math.floor(bhPx * 0.25)}px Gonta`;
+      if (isButtonPressed(p1, i)) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(x0, y0m,	bwPx - 2, bhPx - 2); }
+      ctx.fillStyle = '#fff'; ctx.font = `${Math.floor(bhPx * 0.25)}px Gonta`;
       ctx.fillText(p2.skills[i].name, x0 + bwPx / 2, bhPx * 0.35);
       ctx.font = `${Math.floor(bhPx * 0.3)}px Gonta`;
-      ctx.fillText(p2.skills[i].cost, x0 + bwPx / 2, bhPx * 0.75);
+      ctx.fillText(p2.skills[i].cost, x0 + bwPx / 2,	bhPx * 0.75);
       ctx.font = `${Math.floor(bhPx * 0.25)}px Gonta`;
-      ctx.fillText(p1.skills[i].name, x0 + bwPx / 2, y0m + bhPx * 0.35);
+      ctx.fillText(p1.skills[i].name,	x0 + bwPx / 2,	y0m + bhPx * 0.35);
       ctx.font = `${Math.floor(bhPx * 0.3)}px Gonta`;
-      ctx.fillText(p1.skills[i].cost, x0 + bwPx / 2, y0m + bhPx * 0.75);
+      ctx.fillText(p1.skills[i].cost,	x0 + bwPx / 2,	y0m + bhPx * 0.75);
     }
     const barH = 18;
-    ctx.fillStyle = p2.color; ctx.fillRect(0, bhPx + 2, canvas.width * (p2.cost / p2.maxCost), barH);
-    if (p2.cost >= p2.maxCost) ctx.fillStyle = 'rgba(255,255,255,0.3)', ctx.fillRect(0, bhPx + 2, canvas.width, barH);
-    ctx.fillStyle = p1.color; ctx.fillRect(0, canvas.height - bhPx - 2 - barH, canvas.width * (p1.cost / p1.maxCost), barH);
-    if (p1.cost >= p1.maxCost) ctx.fillStyle = 'rgba(255,255,255,0.3)', ctx.fillRect(0, canvas.height - bhPx - 2 - barH, canvas.width, barH);
+    ctx.fillStyle = p2.color;	ctx.fillRect(0, bhPx + 2, canvas.width * (p2.cost / p2.maxCost), barH);
+    if (p2.cost >= p2.maxCost) { ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(0, bhPx + 2, canvas.width, barH); }
+    ctx.fillStyle = p1.color;	ctx.fillRect(0,	canvas.height - bhPx - 2 - barH,	canvas.width * (p1.cost /	p1.maxCost),	barH);
+    if (p1.cost >= p1.maxCost) { ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(0, canvas.height - bhPx - 2 -	barH, canvas.width,	barH); }
     ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 5;
-    for (let j = 1; j < 10; j++) {
-      const xL = j * (canvas.width / 10);
-      ctx.beginPath(); ctx.moveTo(xL, bhPx + 2); ctx.lineTo(xL, bhPx + 2 + barH); ctx.stroke();
+    for (let j = 1; j < 10; j++) { const xL = j * (canvas.width / 10);
+      ctx.beginPath(); ctx.moveTo(xL,	bhPx + 2); ctx.lineTo(xL, bhPx + 2 + barH); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(xL, canvas.height - bhPx - 2 - barH); ctx.lineTo(xL, canvas.height - bhPx - 2); ctx.stroke();
     }
     ctx.fillStyle = '#fff'; ctx.font = `${barH * 0.8}px Gonta`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(`${Math.floor(p2.cost)}/${p2.maxCost}`, canvas.width / 2, bhPx + 2 + barH / 2);
     ctx.fillText(`${Math.floor(p1.cost)}/${p1.maxCost}`, canvas.width / 2, canvas.height - bhPx - 2 - barH / 2);
+    // メニュー描画
+    if (menuOpen) {
+      ctx.save(); ctx.scale(scaleX, scaleY);
+      ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(menuX, 0, MENU_WIDTH, VIRTUAL_HEIGHT);
+      ctx.fillStyle = '#fff'; ctx.font = '50px Gonta'; ctx.textAlign = 'left';
+      ctx.fillText('設定', menuX + 20, 80);
+      characters.forEach((c, i) => {
+        const y = 150 + i * 100;
+        ctx.fillStyle = (i === selectedChar1 || i === selectedChar2) ? '#ff0' : '#fff';
+        ctx.fillText(
+          c.name + (i === selectedChar1 ? ' (P1)' : '') + (i === selectedChar2 ? ' (P2)' : ''),menuX + 20,y
+        );
+      });
+      ctx.restore();
+    }
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
