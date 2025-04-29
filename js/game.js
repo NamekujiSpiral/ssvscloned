@@ -69,6 +69,46 @@
   ];
   const playerColors = ['#4af', '#fa4'];
 
+  class PItem {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+      this.vy = 200; // 仮想単位/秒
+      this.size = 70;
+    }
+    update(dt) {
+      this.y += this.vy * dt;
+    }
+    draw() {
+      // 星型を簡略的に多角形で描画
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.beginPath();
+      for (let i = 0; i < 5; i++) {
+        const angle = (Math.PI * 2 / 5) * i - Math.PI / 2;
+        const r = this.size;
+        ctx.lineTo(Math.cos(angle) * r, Math.sin(angle) * r);
+        const midAngle = angle + Math.PI / 5;
+        ctx.lineTo(Math.cos(midAngle) * (r / 2), Math.sin(midAngle) * (r / 2));
+      }
+      ctx.closePath();
+      ctx.fillStyle = '#ff0';
+      ctx.fill();
+      ctx.restore();
+    }
+    isOff() {
+      return this.y - this.size > VIRTUAL_HEIGHT;
+    }
+  }
+
+  // パワーアップアイテムリスト
+  let pItems = [];
+
+  function dropP(x, y, count = 1) {
+    for (let i = 0; i < count; i++) {
+      pItems.push(new PItem(x, y));
+    }
+  }
 
   class Player {
     constructor(y, charIndex, color) {
@@ -79,6 +119,10 @@
       this.color = color;
       this.alive = true;
       this.direction = 0;
+      this.baseSpeed = 3;
+      this.speed = this.baseSpeed;
+      this.maxSpeed = this.baseSpeed * 1.5;
+      this.pCount = 0;
       this.speed = 3;
       this.cost = 0;
       this.maxCost = 10;
@@ -162,51 +206,51 @@
 
   function closeMenu() { menuOpen = false; menuX = VIRTUAL_WIDTH; }
 
-// 入力: ボタン操作, メニュースワイプ, メニュータップ
-canvas.addEventListener('pointerdown', e => {
-  const rect = canvas.getBoundingClientRect();
-  const x = (e.clientX - rect.left) / scaleX;
-  const y = (e.clientY - rect.top) / scaleY;
-  // メニュースワイプ開始
-  if (x > VIRTUAL_WIDTH - SWIPE_THRESHOLD) { swipeStart = x; return; }
-  // メニュー外タップで閉じる
-  if (menuOpen && x < menuX) { closeMenu(); return; }
-  // メニュー内部タップ：キャラ / AI 選択
-  if (menuOpen && x >= menuX) {
-    const localX = x - menuX;
-    const localY = y;
-    // キャラリスト
-    characters.forEach((c, i) => {
-      const itemY = 150 + i * 100;
-      if (localY > itemY - 30 && localY < itemY + 30) {
-        if (localX < MENU_WIDTH / 2) selectedChar1 = i;
-        else selectedChar2 = i;
-        // 再生成
-        p1 = new Player(VIRTUAL_HEIGHT - virtualButtonHeight - marginVirtual - 200, selectedChar1, playerColors[0]);
-        p2 = new Player(virtualButtonHeight + marginVirtual, selectedChar2, playerColors[1]);
+  // 入力: ボタン操作, メニュースワイプ, メニュータップ
+  canvas.addEventListener('pointerdown', e => {
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / scaleX;
+    const y = (e.clientY - rect.top) / scaleY;
+    // メニュースワイプ開始
+    if (x > VIRTUAL_WIDTH - SWIPE_THRESHOLD) { swipeStart = x; return; }
+    // メニュー外タップで閉じる
+    if (menuOpen && x < menuX) { closeMenu(); return; }
+    // メニュー内部タップ：キャラ / AI 選択
+    if (menuOpen && x >= menuX) {
+      const localX = x - menuX;
+      const localY = y;
+      // キャラリスト
+      characters.forEach((c, i) => {
+        const itemY = 150 + i * 100;
+        if (localY > itemY - 30 && localY < itemY + 30) {
+          if (localX < MENU_WIDTH / 2) selectedChar1 = i;
+          else selectedChar2 = i;
+          // 再生成
+          p1 = new Player(VIRTUAL_HEIGHT - virtualButtonHeight - marginVirtual - 200, selectedChar1, playerColors[0]);
+          p2 = new Player(virtualButtonHeight + marginVirtual, selectedChar2, playerColors[1]);
+        }
+      });
+      // AIトグル
+      const aiY = 150 + characters.length * 100;
+      if (localY > aiY - 30 && localY < aiY + 30) {
+        autoOpponent = !autoOpponent;
       }
-    });
-    // AIトグル
-    const aiY = 150 + characters.length * 100;
-    if (localY > aiY - 30 && localY < aiY + 30) {
-      autoOpponent = !autoOpponent;
+      // 閉じるアイコン
+      if (localY < 50 && localX > MENU_WIDTH - 50) {
+        closeMenu();
+      }
+      return;
     }
-    // 閉じるアイコン
-    if (localY < 50 && localX > MENU_WIDTH - 50) {
-      closeMenu();
+    // 以下は元のpointerdown処理
+    const idx = Math.floor(x / (VIRTUAL_WIDTH / 3));
+    const bh = virtualButtonHeight;
+    if (y < bh) { pressedButtons.set(e.pointerId, { player: p2, idx }); return; }
+    if (y > VIRTUAL_HEIGHT - bh) { pressedButtons.set(e.pointerId, { player: p1, idx }); return; }
+    if (!gameOver) {
+      const pl = y > VIRTUAL_HEIGHT / 2 ? p1 : p2;
+      pl.direction = x < VIRTUAL_WIDTH / 2 ? -1 : 1;
     }
-    return;
-  }
-  // 以下は元のpointerdown処理
-  const idx = Math.floor(x / (VIRTUAL_WIDTH / 3));
-  const bh = virtualButtonHeight;
-  if (y < bh) { pressedButtons.set(e.pointerId, { player: p2, idx }); return; }
-  if (y > VIRTUAL_HEIGHT - bh) { pressedButtons.set(e.pointerId, { player: p1, idx }); return; }
-  if (!gameOver) {
-    const pl = y > VIRTUAL_HEIGHT / 2 ? p1 : p2;
-    pl.direction = x < VIRTUAL_WIDTH / 2 ? -1 : 1;
-  }
-});
+  });
   canvas.addEventListener('pointermove', e => {
     if (swipeStart != null) {
       const dx = (e.clientX - canvas.getBoundingClientRect().left) / scaleX - swipeStart;
@@ -287,14 +331,32 @@ canvas.addEventListener('pointerdown', e => {
   let last = performance.now();
   function loop(now) {
     const dt = (now - last) / 1000; last = now;
-    ctx.clearRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.save(); ctx.scale(scaleX, scaleY);
-    p1.update(dt); p2.update(dt);
+
+    pItems.forEach(pi => {
+      pi.update(dt);
+      pi.draw();
+    });
+
+    pItems = pItems.filter(pi => {
+      let caught = false;
+      [p1, p2].forEach(pl => {
+        if (!caught && pi.x > pl.x && pi.x < pl.x + pl.size && pi.y > pl.y && pi.y < pl.y + pl.size) {
+          pl.pCount++;
+          pl.speed = Math.min(pl.maxSpeed, pl.baseSpeed + 0.2 * pl.pCount);
+          caught = true;
+        }
+      });
+      return !caught && !pi.isOff();
+    });
+
     if (gameOver && breakTarget) {
       breakProgress += dt; const t = Math.min(1, breakProgress / BREAK_DURATION);
       p1.draw(); p2.draw(); breakTarget.draw(1 - t, 1 - t);
       if (t >= 1) { alert((breakTarget === p1 ? '上側' : '下側') + 'の勝利！'); location.reload(); return; }
     } else {
+      p1.update(dt); p2.update(dt);
       p1.draw(); p2.draw(); bullets = bullets.filter(b => { b.update(dt); b.draw(); return !checkHit(b) && !b.isOff(); });
     }
     ctx.restore();
