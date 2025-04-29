@@ -19,8 +19,8 @@
   let menuOpen = false;
   let menuX = VIRTUAL_WIDTH;
   let swipeStart = null;
-  const MENU_WIDTH = 800; // 幅を拡大
-  const SWIPE_THRESHOLD = 100; // 開く閾値を緩和
+  const MENU_WIDTH = 800;
+  const SWIPE_THRESHOLD = 100;
 
   // ゲーム状態
   let gameOver = false;
@@ -34,7 +34,7 @@
   // 選択キャラ
   let selectedChar1 = 2;
   let selectedChar2 = 3;
-  let autoOpponent = false; // 対戦相手AI
+  let autoOpponent = false;
 
   // キャラクター＆スキル定義
   const characters = [
@@ -68,6 +68,33 @@
     }
   ];
   const playerColors = ['#4af', '#fa4'];
+
+  class Box {
+    constructor() {
+      this.id = Math.floor(Math.random() * 4) + 1; // 1～4
+      this.hp = this.id;
+      this.side = Math.random() < 0.5 ? 'left' : 'right';
+      this.x = this.side === 'left' ? 0 : VIRTUAL_WIDTH;
+      this.y = VIRTUAL_HEIGHT / 2 + (Math.random() * 600 - 300);
+      const speeds = [400, 300, 200, 100];
+      this.vx = (this.side === 'left' ? 1 : -1) * speeds[this.id - 1];
+      this.size = 170;
+    }
+    update(dt) {
+      this.x += this.vx * dt;
+    }
+    draw() {
+      ctx.fillStyle = "rgb(255, 238, 0)";
+      ctx.fillRect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
+      ctx.fillStyle = '#000';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = '100px sans-serif';
+      ctx.fillText(this.id, this.x, this.y);
+    }
+    isOff() {
+      return this.x < -this.size || this.x > VIRTUAL_WIDTH + this.size;
+    }
+  }
 
   class PItem {
     constructor(x, y) {
@@ -103,13 +130,18 @@
 
   // パワーアップアイテムリスト
   let pItems = [];
+  let boxes = [];
 
-  function dropP(x, y, count = 1) {
-    for (let i = 0; i < count; i++) {
-      pItems.push(new PItem(x, y));
-    }
+  // 箱出現スケジュール
+  const SPAWN_COUNT = 13;
+  const spawnTimes = Array.from({ length: SPAWN_COUNT }, () => Math.random() * 60);
+  spawnTimes.sort((a, b) => a - b);
+  let nextSpawn = 0;
+  let gameTime = 0;
+
+  function dropP(x, y) {
+    pItems.push(new PItem(x, y));
   }
-
   class Player {
     constructor(y, charIndex, color) {
       this.size = 180;
@@ -330,15 +362,43 @@
 
   let last = performance.now();
   function loop(now) {
-    const dt = (now - last) / 1000; last = now;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.save(); ctx.scale(scaleX, scaleY);
+    const dt = (now - last) / 1000;
+    last = now;
+    gameTime += dt;
 
-    pItems.forEach(pi => {
-      pi.update(dt);
-      pi.draw();
-    });
+    // 1. 箱の出現
+    if (nextSpawn < SPAWN_COUNT && gameTime >= spawnTimes[nextSpawn]) {
+      boxes.push(new Box());
+      nextSpawn++;
+    }
 
+    // 2. 更新
+    p1.update(dt); p2.update(dt);
+    bullets.forEach(b => b.update(dt));
+    pItems.forEach(pi => pi.update(dt));
+    boxes.forEach(box => box.update(dt));
+
+    // 3. 箱－弾 衝突判定
+    /*bullets = bullets.filter(b => {
+      let hitBox = false;
+      boxes.forEach((box, i) => {
+        if (!hitBox && b.x > box.x - box.size / 2 && b.x < box.x + box.size / 2 && b.y > box.y - box.size / 2 && b.y < box.y + box.size / 2) {
+          box.hp--;
+          if (box.hp <= 0) {
+            dropP(box.x, box.y, box.id);
+            boxes.splice(i, 1);
+          }
+          hitBox = true;
+        }
+        // Boxに当たった弾は消滅
+        if (hitBox) return false;
+        // 通常弾処理
+        return !checkHit(b) && !b.isOff();
+      });
+    });*/
+
+
+    //4.P取得
     pItems = pItems.filter(pi => {
       let caught = false;
       [p1, p2].forEach(pl => {
@@ -351,15 +411,22 @@
       return !caught && !pi.isOff();
     });
 
+    //5. 描画
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save(); ctx.scale(scaleX, scaleY);
+    p1.draw(); p2.draw();
+    boxes.forEach(box=>box.draw());
+    bullets.forEach(b=>b.draw());
+    pItems.forEach(pi=>pi.draw());
+
     if (gameOver && breakTarget) {
       breakProgress += dt; const t = Math.min(1, breakProgress / BREAK_DURATION);
-      p1.draw(); p2.draw(); breakTarget.draw(1 - t, 1 - t);
+       breakTarget.draw(1 - t, 1 - t);
       if (t >= 1) { alert((breakTarget === p1 ? '上側' : '下側') + 'の勝利！'); location.reload(); return; }
-    } else {
-      p1.update(dt); p2.update(dt);
-      p1.draw(); p2.draw(); bullets = bullets.filter(b => { b.update(dt); b.draw(); return !checkHit(b) && !b.isOff(); });
     }
+    
     ctx.restore();
+
     // UI描画
     const bhPx = virtualButtonHeight * scaleY, bwPx = canvas.width / 3;
     ctx.textAlign = 'center';
@@ -427,6 +494,7 @@
       ctx.fillText('✕', menuX + MENU_WIDTH - 40, 40);
       ctx.restore();
     }
+
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
