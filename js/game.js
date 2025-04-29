@@ -210,7 +210,7 @@ canvas.addEventListener('pointerdown', e => {
   canvas.addEventListener('pointermove', e => {
     if (swipeStart != null) {
       const dx = (e.clientX - canvas.getBoundingClientRect().left) / scaleX - swipeStart;
-      menuX = VIRTUAL_WIDTH - MENU_WIDTH + dx;
+      menuX = VIRTUAL_WIDTH + dx;
       // clamp menuX
       menuX = Math.max(VIRTUAL_WIDTH - MENU_WIDTH, Math.min(menuX, VIRTUAL_WIDTH));
       menuOpen = true;
