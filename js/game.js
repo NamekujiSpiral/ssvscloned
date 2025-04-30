@@ -69,7 +69,7 @@
     {
       name: 'test', skills: [
         { name: 'test1', cost: 0, size: 200, speed: 3, behavior: 'straight'},
-        { name: 'test2', cost: 3, size: 900, speed: 30, behavior: 'twin'},
+        { name: 'test2', cost: 3, size: 700, speed: 30, behavior: 'twin'},
         { name: 'testicle', cost: 1, size: 10, speed: 4, behavior: 'mirror'}
       ]
     }
@@ -94,6 +94,7 @@
       const speeds = [250, 200, 150, 100];
       this.vx = (this.side === 'left' ? 1 : -1) * speeds[this.id - 1];
       this.size = 170;
+      //todo
     }
     update(dt) {
       this.x += this.vx * dt;
