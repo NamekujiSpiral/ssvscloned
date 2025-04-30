@@ -65,18 +65,33 @@
         { name: 'ミラーショット', cost: 4, size: 80, speed: 12, behavior: 'mirror' },
         { name: 'だましダブル', cost: 5, size: 80, speed: 12, behavior: 'trickDouble' }
       ]
+    },
+    {
+      name: 'test', skills: [
+        { name: 'test1', cost: 0, size: 200, speed: 3, behavior: 'straight'},
+        { name: 'test2', cost: 3, size: 900, speed: 30, behavior: 'twin'},
+        { name: 'testicle', cost: 1, size: 10, speed: 4, behavior: 'mirror'}
+      ]
     }
   ];
   const playerColors = ['#4af', '#fa4'];
 
   class Box {
     constructor() {
-      this.id = Math.floor(Math.random() * 4) + 1; // 1～4
+      let f;
+      if (nextSpawn < 3) {
+        f = 2
+      } else if (nextSpawn < 8) {
+        f = 3;
+      } else {
+        f = 4;
+      };
+      this.id = Math.floor(Math.random() * f) + 1; // 1～4
       this.hp = this.id;
       this.side = Math.random() < 0.5 ? 'left' : 'right';
-      this.x = this.side === 'left' ? 0 : VIRTUAL_WIDTH;
-      this.y = VIRTUAL_HEIGHT / 2 + (Math.random() * 600 - 300);
-      const speeds = [400, 300, 200, 100];
+      this.x = this.side === 'left' ? -1000 : VIRTUAL_WIDTH + 1000;
+      this.y = VIRTUAL_HEIGHT / 2 + (Math.random() * 400 - 200);
+      const speeds = [250, 200, 150, 100];
       this.vx = (this.side === 'left' ? 1 : -1) * speeds[this.id - 1];
       this.size = 170;
     }
@@ -89,7 +104,7 @@
       ctx.fillStyle = '#000';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.font = '100px sans-serif';
-      ctx.fillText(this.id, this.x, this.y);
+      ctx.fillText(this.hp, this.x, this.y);
     }
     isOff() {
       return this.x < -this.size || this.x > VIRTUAL_WIDTH + this.size;
@@ -134,8 +149,7 @@
 
   // 箱出現スケジュール
   const SPAWN_COUNT = 13;
-  const spawnTimes = Array.from({ length: SPAWN_COUNT }, () => Math.random() * 60);
-  spawnTimes.sort((a, b) => a - b);
+  const spawnTimes = [0, 5, 10, 15];//後で13個になるよう追加
   let nextSpawn = 0;
   let gameTime = 0;
 
@@ -145,7 +159,9 @@
   class Player {
     constructor(y, charIndex, color) {
       this.size = 180;
-      this.x = (VIRTUAL_WIDTH - this.size) / 2;
+      this.width = 140;
+      this.height = 180;
+      this.x = (VIRTUAL_WIDTH - this.width) / 2;
       this.y = y;
       this.skills = characters[charIndex].skills;
       this.color = color;
@@ -170,9 +186,10 @@
     draw(alpha = 1, scale = 1) {
       if (!this.alive) return;
       ctx.save(); ctx.globalAlpha = alpha;
-      const w = this.size * scale;
+      const w = this.width * scale;
+      const h = this.height * scale;
       ctx.fillStyle = this.color;
-      ctx.fillRect(this.x + (this.size - w) / 2, this.y + (this.size - w) / 2, w, w);
+      ctx.fillRect(this.x, this.y, this.width * scale, this.height * scale);
       ctx.restore();
     }
   }
@@ -192,7 +209,7 @@
       if ((this.behavior === 'curveLeft' || this.behavior === 'curveRight') && !this.passed) {
         if ((this.vy < 0 && this.y < VIRTUAL_HEIGHT / 2) || (this.vy > 0 && this.y > VIRTUAL_HEIGHT / 2)) {
           this.passed = true;
-          this.vx = this.behavior === 'curveLeft' ? -6 : 6;
+          this.vx = this.behavior === 'curveLeft' ? -4 : 4;
         }
       }
       if (this.behavior === 'mirror' && !this.passed) {
@@ -322,7 +339,7 @@
     if (player.cost < skill.cost || player.cooldowns[idx] > 0 || gameOver) return;
     player.cost -= skill.cost;
     player.cooldowns[idx] = COOLDOWN_DURATION;
-    const bx = player.x + player.size / 2;
+    const bx = player.x + player.width / 2;
     let by = player.y + (player === p1 ? -player.size / 2 : player.size + player.size / 2);
     if (skill.name === 'スーパーヘヴィ') by += (player === p1 ? 50 : -50);
     if (skill.behavior === 'twin') {
@@ -366,65 +383,22 @@
     last = now;
     gameTime += dt;
 
-    // 1. 箱の出現
-    if (nextSpawn < SPAWN_COUNT && gameTime >= spawnTimes[nextSpawn]) {
-      boxes.push(new Box());
-      nextSpawn++;
-    }
 
-    // 2. 更新
-    p1.update(dt); p2.update(dt);
-    bullets.forEach(b => b.update(dt));
-    pItems.forEach(pi => pi.update(dt));
-    boxes.forEach(box => box.update(dt));
-
-    // 3. 箱－弾 衝突判定
-    /*bullets = bullets.filter(b => {
-      let hitBox = false;
-      boxes.forEach((box, i) => {
-        if (!hitBox && b.x > box.x - box.size / 2 && b.x < box.x + box.size / 2 && b.y > box.y - box.size / 2 && b.y < box.y + box.size / 2) {
-          box.hp--;
-          if (box.hp <= 0) {
-            dropP(box.x, box.y, box.id);
-            boxes.splice(i, 1);
-          }
-          hitBox = true;
-        }
-        // Boxに当たった弾は消滅
-        if (hitBox) return false;
-        // 通常弾処理
-        return !checkHit(b) && !b.isOff();
-      });
-    });*/
-
-
-    //4.P取得
-    pItems = pItems.filter(pi => {
-      let caught = false;
-      [p1, p2].forEach(pl => {
-        if (!caught && pi.x > pl.x && pi.x < pl.x + pl.size && pi.y > pl.y && pi.y < pl.y + pl.size) {
-          pl.pCount++;
-          pl.speed = Math.min(pl.maxSpeed, pl.baseSpeed + 0.2 * pl.pCount);
-          caught = true;
-        }
-      });
-      return !caught && !pi.isOff();
-    });
 
     //5. 描画
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.save(); ctx.scale(scaleX, scaleY);
     p1.draw(); p2.draw();
-    boxes.forEach(box=>box.draw());
-    bullets.forEach(b=>b.draw());
-    pItems.forEach(pi=>pi.draw());
+    boxes.forEach(box => box.draw());
+    bullets.forEach(b => b.draw());
+    pItems.forEach(pi => pi.draw());
 
     if (gameOver && breakTarget) {
       breakProgress += dt; const t = Math.min(1, breakProgress / BREAK_DURATION);
-       breakTarget.draw(1 - t, 1 - t);
+      breakTarget.draw(1 - t, 1 - t);
       if (t >= 1) { alert((breakTarget === p1 ? '上側' : '下側') + 'の勝利！'); location.reload(); return; }
     }
-    
+
     ctx.restore();
 
     // UI描画
@@ -494,6 +468,52 @@
       ctx.fillText('✕', menuX + MENU_WIDTH - 40, 40);
       ctx.restore();
     }
+    // 1. 箱の出現
+    if (nextSpawn < SPAWN_COUNT && gameTime >= spawnTimes[nextSpawn]) {
+      boxes.push(new Box());
+      nextSpawn++;
+    }
+
+    // 2. 更新
+    p1.update(dt); p2.update(dt);
+    bullets.forEach(b => b.update(dt));
+    pItems.forEach(pi => pi.update(dt));
+    boxes.forEach(box => box.update(dt));
+
+    // 3. 箱－弾 衝突判定
+    bullets = bullets.filter(b => {
+      let hitBox = false;
+      boxes.forEach((box, i) => {
+        if (!hitBox) {
+          const halfB = b.size / 2;
+          const halfBox = box.size / 2;
+          if (b.x + halfB > box.x - halfBox && b.x - halfB < box.x + halfBox &&
+            b.y + halfB > box.y - halfBox && b.y - halfB < box.y + halfBox) {
+            box.hp--;
+            if (box.hp <= 0) { dropP(box.x, box.y); boxes.splice(i, 1); }
+            hitBox = true;
+          }
+        }
+      });
+      // Boxに当たった弾は消滅
+      if (hitBox) return false;
+      // 通常弾処理
+      return !checkHit(b) && !b.isOff();
+    });
+
+
+    //4.P取得
+    pItems = pItems.filter(pi => {
+      let caught = false;
+      [p1,p2].forEach(pl => {
+        if (!caught && pi.x >= pl.x && pi.x <= pl.x + pl.width &&
+            pi.y >= pl.y && pi.y <= pl.y + pl.height) {
+          pl.pCount++; pl.speed = Math.min(pl.maxSpeed, pl.baseSpeed +0.2*pl.pCount);
+          caught = true;
+        }
+      });
+      return !caught && !pi.isOff();
+    });
 
     requestAnimationFrame(loop);
   }
