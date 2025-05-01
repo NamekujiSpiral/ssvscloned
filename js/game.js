@@ -68,9 +68,9 @@
     },
     {
       name: 'test', skills: [
-        { name: 'test1', cost: 0, size: 200, speed: 3, behavior: 'straight'},
-        { name: 'test2', cost: 3, size: 700, speed: 30, behavior: 'twin'},
-        { name: 'testicle', cost: 1, size: 10, speed: 4, behavior: 'mirror'}
+        { name: 'test1', cost: 0, size: 200, speed: 3, behavior: 'straight' },
+        { name: 'test2', cost: 3, size: 600, speed: 30, behavior: 'twin' },
+        { name: 'testicle', cost: 1, size: 10, speed: 4, behavior: 'mirror' }
       ]
     }
   ];
@@ -94,18 +94,26 @@
       const speeds = [250, 200, 150, 100];
       this.vx = (this.side === 'left' ? 1 : -1) * speeds[this.id - 1];
       this.size = 170;
-      //todo
+      this.shakeTime = 0;
+      this.shakeDuration = 0.3; // seconds
+      this.shakeDirection = 0;
     }
     update(dt) {
       this.x += this.vx * dt;
+      if (this.shakeTime > 0) {
+        this.shakeTime = Math.max(0, this.shakeTime - dt);
+      }
     }
     draw() {
+      const shakeOffset = this.shakeTime > 0
+        ? Math.sin((this.shakeTime / this.shakeDuration) * Math.PI * 4) * 5 * this.shakeDirection
+        : 0;
       ctx.fillStyle = "rgb(255, 238, 0)";
-      ctx.fillRect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
+      ctx.fillRect(this.x - this.size / 2, this.y - this.size / 2 + shakeOffset, this.size, this.size);
       ctx.fillStyle = '#000';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.font = '100px sans-serif';
-      ctx.fillText(this.hp, this.x, this.y);
+      ctx.fillText(this.hp, this.x, this.y + shakeOffset);
     }
     isOff() {
       return this.x < -this.size || this.x > VIRTUAL_WIDTH + this.size;
@@ -490,6 +498,8 @@
           const halfBox = box.size / 2;
           if (b.x + halfB > box.x - halfBox && b.x - halfB < box.x + halfBox &&
             b.y + halfB > box.y - halfBox && b.y - halfB < box.y + halfBox) {
+            box.shakeDirection = -Math.sign(b.vy);
+            box.shakeTime = box.shakeDuration;
             box.hp--;
             if (box.hp <= 0) { dropP(box.x, box.y); boxes.splice(i, 1); }
             hitBox = true;
@@ -506,10 +516,10 @@
     //4.P取得
     pItems = pItems.filter(pi => {
       let caught = false;
-      [p1,p2].forEach(pl => {
+      [p1, p2].forEach(pl => {
         if (!caught && pi.x >= pl.x && pi.x <= pl.x + pl.width &&
-            pi.y >= pl.y && pi.y <= pl.y + pl.height) {
-          pl.pCount++; pl.speed = Math.min(pl.maxSpeed, pl.baseSpeed +0.2*pl.pCount);
+          pi.y >= pl.y && pi.y <= pl.y + pl.height) {
+          pl.pCount++; pl.speed = Math.min(pl.maxSpeed, pl.baseSpeed + 0.2 * pl.pCount);
           caught = true;
         }
       });
