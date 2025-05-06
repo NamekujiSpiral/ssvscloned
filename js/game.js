@@ -76,11 +76,12 @@
   ];
   const playerColors = ['#4af', '#fa4'];
 
+  const boxSize = 170;
   class Box {
     constructor() {
       let f;
       if (nextSpawn < 3) {
-        f = 2
+        f = 2;
       } else if (nextSpawn < 8) {
         f = 3;
       } else {
@@ -89,11 +90,11 @@
       this.id = Math.floor(Math.random() * f) + 1; // 1～4
       this.hp = this.id;
       this.side = Math.random() < 0.5 ? 'left' : 'right';
-      this.x = this.side === 'left' ? -1000 : VIRTUAL_WIDTH + 1000;
+      this.x = this.side === 'left' ? - boxSize * 1.5 : VIRTUAL_WIDTH + boxSize * 1.5;
       this.y = VIRTUAL_HEIGHT / 2 + (Math.random() * 400 - 200);
-      const speeds = [250, 200, 150, 100];
+      const speeds = [boxSize, boxSize/2, boxSize/3,boxSize/4];
       this.vx = (this.side === 'left' ? 1 : -1) * speeds[this.id - 1];
-      this.size = 170;
+      this.size = boxSize;
       this.shakeTime = 0;
       this.shakeDuration = 0.3; // seconds
       this.shakeDirection = 0;
@@ -106,7 +107,7 @@
     }
     draw() {
       const shakeOffset = this.shakeTime > 0
-        ? Math.sin((this.shakeTime / this.shakeDuration) * Math.PI * 4) * 5 * this.shakeDirection
+        ? Math.sin((this.shakeTime / this.shakeDuration / 2) * Math.PI * 4) * 10 * this.shakeDirection
         : 0;
       ctx.fillStyle = "rgb(255, 238, 0)";
       ctx.fillRect(this.x - this.size / 2, this.y - this.size / 2 + shakeOffset, this.size, this.size);
@@ -121,10 +122,12 @@
   }
 
   class PItem {
-    constructor(x, y) {
+    constructor(x, y, owner) {
       this.x = x;
       this.y = y;
+      this.owner = owner;
       this.vy = 200; // 仮想単位/秒
+      if(this.owner === p2) this.vy *= -1;
       this.size = 70;
     }
     update(dt) {
@@ -134,6 +137,9 @@
       // 星型を簡略的に多角形で描画
       ctx.save();
       ctx.translate(this.x, this.y);
+      if (this.owner === p2) {
+        ctx.scale(1, -1);
+      }
       ctx.beginPath();
       for (let i = 0; i < 5; i++) {
         const angle = (Math.PI * 2 / 5) * i - Math.PI / 2;
@@ -158,12 +164,13 @@
 
   // 箱出現スケジュール
   const SPAWN_COUNT = 13;
-  const spawnTimes = [0, 5, 10, 15];//後で13個になるよう追加
+  const spawnTimes = [3, 7, 12, 18, 25, 33, 42, 52, 63, 75, 88, 102, 117];//後で13個になるよう追加
   let nextSpawn = 0;
   let gameTime = 0;
+  let DEBUG_TIME = { value: 0 };
 
-  function dropP(x, y) {
-    pItems.push(new PItem(x, y));
+  function dropP(x, y, owner) {
+    pItems.push(new PItem(x, y, owner));
   }
   class Player {
     constructor(y, charIndex, color) {
@@ -188,6 +195,22 @@
     }
     update(dt) {
       if (!this.alive || gameOver) return;
+      const t = DEBUG_TIME.value || gameTime;
+      if (t > 60) {
+        const p1 = players[0], p2 = players[1];
+        // 線形補間係数
+        const tt = Math.min(Math.max((t - 60) / (145 - 60), 0), 1);
+        // 開始時のギャップ
+        const initialGap = -2100;
+        // 目標ギャップ
+        const targetGap = -450;
+        // 許可間隔
+        const allowedGap = initialGap + (targetGap - initialGap) * tt;
+        // p1は上方向に、p2は下方向に近づける
+        const midY = (p1.y + p2.y) / 2;
+        p1.y = midY - allowedGap / 2;
+        p2.y = midY + allowedGap / 2;
+      }
       this.x = Math.max(0, Math.min(VIRTUAL_WIDTH - this.size, this.x + this.direction * this.speed));
       this.cost = Math.min(this.maxCost, this.cost + dt * this.costRate);
       this.cooldowns = this.cooldowns.map(cd => Math.max(0, cd - dt));
@@ -248,6 +271,7 @@
 
   let p1 = new Player(VIRTUAL_HEIGHT - virtualButtonHeight - marginVirtual - 200, selectedChar1, playerColors[0]);
   let p2 = new Player(virtualButtonHeight + marginVirtual, selectedChar2, playerColors[1]);
+  const players = [p1, p2];
   let bullets = [];
 
   let scaleX = 1, scaleY = 1;
@@ -501,7 +525,7 @@
             box.shakeDirection = -Math.sign(b.vy);
             box.shakeTime = box.shakeDuration;
             box.hp--;
-            if (box.hp <= 0) { dropP(box.x, box.y); boxes.splice(i, 1); }
+            if (box.hp <= 0) { dropP(box.x, box.y, b.owner); boxes.splice(i, 1); }
             hitBox = true;
           }
         }
