@@ -397,7 +397,7 @@
     const t = b.owner === p1 ? p2 : p1;
     if (!t.alive || gameOver) return false;
     const h = b.size / 2;
-    if (!(b.x + h < t.x || b.x - h > t.x + t.size || b.y + h < t.y || b.y - h > t.y + t.size)) {
+    if (!(b.x + h < t.x || b.x - h > t.x + t.width || b.y + h < t.y || b.y - h > t.y + t.height)) {
       t.alive = false; onHit(t); return true;
     }
     return false;
