@@ -40,37 +40,37 @@
   const characters = [
     {
       name: 'クジラ', skills: [
-        { name: 'ヘヴィショット', cost: 2, size: 220, speed: 7.5, behavior: 'straight' },
-        { name: 'スーパーヘヴィ', cost: 5, size: 440, speed: 8, behavior: 'straight' },
-        { name: 'だんまく', cost: 9, size: 150, speed: 4, behavior: 'danmaku' }
+        { name: 'ヘヴィショット', cost: 2, size: 220, speed: 7.5, behavior: 'straight', unlockP: 0 },
+        { name: 'スーパーヘヴィ', cost: 5, size: 440, speed: 8, behavior: 'straight', unlockP: 3 },
+        { name: 'だんまく', cost: 9, size: 150, speed: 4, behavior: 'danmaku', unlockP: 2 }
       ]
     },
     {
       name: 'ウサギ', skills: [
-        { name: 'ショット', cost: 2, size: 80, speed: 12, behavior: 'straight' },
-        { name: 'だましレフト', cost: 3, size: 80, speed: 12, behavior: 'curveLeft' },
-        { name: 'スピードショット', cost: 7, size: 80, speed: 50, behavior: 'straight' }
+        { name: 'ショット', cost: 2, size: 80, speed: 12, behavior: 'straight', unlockP: 0 },
+        { name: 'だましレフト', cost: 3, size: 80, speed: 12, behavior: 'curveLeft', unlockP: 2 },
+        { name: 'スピードショット', cost: 7, size: 80, speed: 50, behavior: 'straight', unlockP: 2 }
       ]
     },
     {
       name: 'カエル', skills: [
-        { name: 'プチショット', cost: 1, size: 30, speed: 6, behavior: 'straight' },
-        { name: 'プチツイン', cost: 2, size: 30, speed: 6.2, behavior: 'twin' },
-        { name: 'ジャンボふうせん', cost: 6, size: 30, speed: 6, behavior: 'balloon' }
+        { name: 'プチショット', cost: 1, size: 30, speed: 6, behavior: 'straight', unlockP: 0 },
+        { name: 'プチツイン', cost: 2, size: 30, speed: 6.2, behavior: 'twin', unlockP: 1 },
+        { name: 'ジャンボふうせん', cost: 6, size: 30, speed: 6, behavior: 'balloon', unlockP: 2 }
       ]
     },
     {
       name: 'ピエロ', skills: [
-        { name: 'ピエロショット', cost: 2, size: 80, speed: 12, behavior: 'straight' },
-        { name: 'ミラーショット', cost: 4, size: 80, speed: 12, behavior: 'mirror' },
-        { name: 'だましダブル', cost: 5, size: 80, speed: 12, behavior: 'trickDouble' }
+        { name: 'ピエロショット', cost: 2, size: 80, speed: 12, behavior: 'straight', unlockP: 0 },
+        { name: 'ミラーショット', cost: 4, size: 80, speed: 12, behavior: 'mirror', unlockP: 2 },
+        { name: 'だましダブル', cost: 5, size: 80, speed: 12, behavior: 'trickDouble', unlockP: 2 }
       ]
     },
     {
       name: 'test', skills: [
-        { name: 'test1', cost: 0, size: 200, speed: 3, behavior: 'straight' },
-        { name: 'test2', cost: 3, size: 600, speed: 30, behavior: 'twin' },
-        { name: 'testicle', cost: 1, size: 10, speed: 4, behavior: 'mirror' }
+        { name: 'test1', cost: 0, size: 200, speed: 3, behavior: 'straight', unlockP: 0 },
+        { name: 'test2', cost: 3, size: 600, speed: 30, behavior: 'twin', unlockP: 0 },
+        { name: 'testicle', cost: 1, size: 10, speed: 4, behavior: 'mirror', unlockP: 2 }
       ]
     }
   ];
@@ -92,7 +92,7 @@
       this.side = Math.random() < 0.5 ? 'left' : 'right';
       this.x = this.side === 'left' ? - boxSize * 1.5 : VIRTUAL_WIDTH + boxSize * 1.5;
       this.y = VIRTUAL_HEIGHT / 2 + (Math.random() * 400 - 200);
-      const speeds = [boxSize, boxSize/2, boxSize/3,boxSize/4];
+      const speeds = [boxSize, boxSize / 2, boxSize / 3, boxSize / 4];
       this.vx = (this.side === 'left' ? 1 : -1) * speeds[this.id - 1];
       this.size = boxSize;
       this.shakeTime = 0;
@@ -127,7 +127,7 @@
       this.y = y;
       this.owner = owner;
       this.vy = 200; // 仮想単位/秒
-      if(this.owner === p2) this.vy *= -1;
+      if (this.owner === p2) this.vy *= -1;
       this.size = 70;
     }
     update(dt) {
@@ -369,6 +369,7 @@
 
   function fire(player, idx) {
     const skill = player.skills[idx];
+    if(player.pCount < skill.unlockP) return;
     if (player.cost < skill.cost || player.cooldowns[idx] > 0 || gameOver) return;
     player.cost -= skill.cost;
     player.cooldowns[idx] = COOLDOWN_DURATION;
