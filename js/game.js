@@ -74,6 +74,13 @@
       ]
     }
   ];
+  characters.forEach(ch => {
+    let cum = 0;
+    ch.skills.forEach(skill => {
+      cum += skill.unlockP;
+      skill._cumUnlockP = cum;
+    })
+  })
   const playerColors = ['#4af', '#fa4'];
 
   const boxSize = 170;
@@ -369,7 +376,7 @@
 
   function fire(player, idx) {
     const skill = player.skills[idx];
-    if(player.pCount < skill.unlockP) return;
+    if(player.pCount < skill._cumUnlockP) return;
     if (player.cost < skill.cost || player.cooldowns[idx] > 0 || gameOver) return;
     player.cost -= skill.cost;
     player.cooldowns[idx] = COOLDOWN_DURATION;
@@ -435,40 +442,55 @@
 
     ctx.restore();
 
-    // UI描画
-    const bhPx = virtualButtonHeight * scaleY, bwPx = canvas.width / 3;
-    ctx.textAlign = 'center';
-    for (let i = 0; i < 3; i++) {
-      const x0 = i * bwPx, y0p = 0, y0m = canvas.height - bhPx;
-      const us2 = p2.cost >= p2.skills[i].cost && p2.cooldowns[i] <= 0;
-      const us1 = p1.cost >= p1.skills[i].cost && p1.cooldowns[i] <= 0;
-      ctx.fillStyle = us2 ? p2.color : 'rgba(200,200,200,0.9)'; ctx.fillRect(x0, y0p, bwPx - 2, bhPx - 2);
-      ctx.fillStyle = us1 ? p1.color : 'rgba(200,200,200,0.9)'; ctx.fillRect(x0, y0m, bwPx - 2, bhPx - 2);
-      if (isButtonPressed(p2, i)) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(x0, y0p, bwPx - 2, bhPx - 2); }
-      if (isButtonPressed(p1, i)) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(x0, y0m, bwPx - 2, bhPx - 2); }
-      ctx.fillStyle = '#fff'; ctx.font = `${Math.floor(bhPx * 0.25)}px Gonta`;
-      ctx.fillText(p2.skills[i].name, x0 + bwPx / 2, bhPx * 0.35);
-      ctx.font = `${Math.floor(bhPx * 0.3)}px Gonta`;
-      ctx.fillText(p2.skills[i].cost, x0 + bwPx / 2, bhPx * 0.75);
-      ctx.font = `${Math.floor(bhPx * 0.25)}px Gonta`;
-      ctx.fillText(p1.skills[i].name, x0 + bwPx / 2, y0m + bhPx * 0.35);
-      ctx.font = `${Math.floor(bhPx * 0.3)}px Gonta`;
-      ctx.fillText(p1.skills[i].cost, x0 + bwPx / 2, y0m + bhPx * 0.75);
-    }
-    const barH = 130 * scaleY;
-    ctx.fillStyle = p2.color; ctx.fillRect(0, bhPx + 2, canvas.width * (p2.cost / p2.maxCost), barH);
-    if (p2.cost >= p2.maxCost) { ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(0, bhPx + 2, canvas.width, barH); }
-    ctx.fillStyle = p1.color; ctx.fillRect(0, canvas.height - bhPx - 2 - barH, canvas.width * (p1.cost / p1.maxCost), barH);
-    if (p1.cost >= p1.maxCost) { ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(0, canvas.height - bhPx - 2 - barH, canvas.width, barH); }
-    ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 5;
-    for (let j = 1; j < 10; j++) {
-      const xL = j * (canvas.width / 10);
-      ctx.beginPath(); ctx.moveTo(xL, bhPx + 2); ctx.lineTo(xL, bhPx + 2 + barH); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(xL, canvas.height - bhPx - 2 - barH); ctx.lineTo(xL, canvas.height - bhPx - 2); ctx.stroke();
-    }
-    ctx.fillStyle = '#fff'; ctx.font = `${barH * 0.8}px Gonta`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(`${Math.floor(p2.cost)}/${p2.maxCost}`, canvas.width / 2, bhPx + 2 + barH / 2);
-    ctx.fillText(`${Math.floor(p1.cost)}/${p1.maxCost}`, canvas.width / 2, canvas.height - bhPx - 2 - barH / 2);
+// UI描画
+const bhPx = virtualButtonHeight * scaleY, bwPx = canvas.width / 3;
+ctx.textAlign = 'center';
+for (let i = 0; i < 3; i++) {
+  const x0 = i * bwPx, y0p = 0, y0m = canvas.height - bhPx;
+  const skill2 = p2.skills[i], skill1 = p1.skills[i];
+  const unlocked2 = p2.pCount >= skill2._cumUnlockP;
+  const ready2    = p2.cost >= skill2.cost && p2.cooldowns[i] <= 0;
+  const unlocked1 = p1.pCount >= skill1._cumUnlockP;
+  const ready1    = p1.cost >= skill1.cost && p1.cooldowns[i] <= 0;
+
+  // p2ボタン色
+  if (!unlocked2)        ctx.fillStyle = 'rgba(130,130,130,1)';
+  else                   ctx.fillStyle = p2.color;
+  ctx.fillRect(x0, y0p, bwPx - 2, bhPx - 2);
+
+  // p1ボタン色
+  if (!unlocked1)        ctx.fillStyle = 'rgba(130,130,130,1)';
+  else if (!ready1)      ctx.fillStyle = 'rgba(200,200,200,1)';
+  else                   ctx.fillStyle = p1.color;
+  ctx.fillRect(x0, y0m, bwPx - 2, bhPx - 2);
+
+  if (isButtonPressed(p2, i)) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(x0, y0p, bwPx - 2, bhPx - 2); }
+  if (isButtonPressed(p1, i)) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(x0, y0m, bwPx - 2, bhPx - 2); }
+
+  ctx.fillStyle = '#fff'; ctx.font = `${Math.floor(bhPx * 0.25)}px Gonta`;
+  ctx.fillText(p2.skills[i].name, x0 + bwPx / 2, bhPx * 0.35);
+  ctx.font = `${Math.floor(bhPx * 0.3)}px Gonta`;
+  ctx.fillText(p2.skills[i].cost, x0 + bwPx / 2, bhPx * 0.75);
+
+  ctx.fillStyle = '#fff'; ctx.font = `${Math.floor(bhPx * 0.25)}px Gonta`;
+  ctx.fillText(p1.skills[i].name, x0 + bwPx / 2, y0m + bhPx * 0.35);
+  ctx.font = `${Math.floor(bhPx * 0.3)}px Gonta`;
+  ctx.fillText(p1.skills[i].cost, x0 + bwPx / 2, y0m + bhPx * 0.75);
+}
+const barH = 130 * scaleY;
+ctx.fillStyle = p2.color; ctx.fillRect(0, bhPx + 2, canvas.width * (p2.cost / p2.maxCost), barH);
+if (p2.cost >= p2.maxCost) { ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(0, bhPx + 2, canvas.width, barH); }
+ctx.fillStyle = p1.color; ctx.fillRect(0, canvas.height - bhPx - 2 - barH, canvas.width * (p1.cost / p1.maxCost), barH);
+if (p1.cost >= p1.maxCost) { ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(0, canvas.height - bhPx - 2 - barH, canvas.width, barH); }
+ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 5;
+for (let j = 1; j < 10; j++) {
+  const xL = j * (canvas.width / 10);
+  ctx.beginPath(); ctx.moveTo(xL, bhPx + 2); ctx.lineTo(xL, bhPx + 2 + barH); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(xL, canvas.height - bhPx - 2 - barH); ctx.lineTo(xL, canvas.height - bhPx - 2); ctx.stroke();
+}
+ctx.fillStyle = '#fff'; ctx.font = `${barH * 0.8}px Gonta`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+ctx.fillText(`${Math.floor(p2.cost)}/${p2.maxCost}`, canvas.width / 2, bhPx + 2 + barH / 2);
+ctx.fillText(`${Math.floor(p1.cost)}/${p1.maxCost}`, canvas.width / 2, canvas.height - bhPx - 2 - barH / 2);
     // メニュー描画
     if (menuOpen) {
       ctx.save(); ctx.scale(scaleX, scaleY);
