@@ -444,79 +444,88 @@
     ctx.restore();
 
     // UI描画
-const bhPx = virtualButtonHeight * scaleY, bwPx = canvas.width / 3;
-ctx.textAlign = 'center';
-for (let i = 0; i < 3; i++) {
-  const x0 = i * bwPx, y0p = 0, y0m = canvas.height - bhPx;
-  const skill2 = p2.skills[i], skill1 = p1.skills[i];
-  const unlocked2 = p2.pCount >= skill2._cumUnlockP;
-  const ready2    = unlocked2 && p2.cost >= skill2.cost && p2.cooldowns[i] <= 0;
-  const unlocked1 = p1.pCount >= skill1._cumUnlockP;
-  const ready1    = unlocked1 && p1.cost >= skill1.cost && p1.cooldowns[i] <= 0;
+    // UI描画
+    const bhPx = virtualButtonHeight * scaleY, bwPx = canvas.width / 3;
+    ctx.textAlign = 'center';
+    for (let i = 0; i < 3; i++) {
+      const x0 = i * bwPx, y0p = 0, y0m = canvas.height - bhPx;
+      const skill2 = p2.skills[i], skill1 = p1.skills[i];
+      const unlocked2 = p2.pCount >= skill2._cumUnlockP;
+      const ready2 = unlocked2 && p2.cost >= skill2.cost && p2.cooldowns[i] <= 0;
+      const unlocked1 = p1.pCount >= skill1._cumUnlockP;
+      const ready1 = unlocked1 && p1.cost >= skill1.cost && p1.cooldowns[i] <= 0;
 
-  // ボタンの色
-  ctx.fillStyle = !unlocked2
-    ? 'rgba(130,130,130,1)'
-    : (!ready2 ? 'rgba(200,200,200,1)' : p2.color);
-  ctx.fillRect(x0, y0p, bwPx-2, bhPx-2);
-  ctx.fillStyle = !unlocked1
-    ? 'rgba(130,130,130,1)'
-    : (!ready1 ? 'rgba(200,200,200,1)' : p1.color);
-  ctx.fillRect(x0, y0m, bwPx-2, bhPx-2);
+      // ボタン背景
+      ctx.fillStyle = !unlocked2 ? 'rgba(130,130,130,1)' : (!ready2 ? 'rgba(200,200,200,1)' : p2.color);
+      ctx.fillRect(x0, y0p, bwPx - 2, bhPx - 2);
+      ctx.fillStyle = !unlocked1 ? 'rgba(130,130,130,1)' : (!ready1 ? 'rgba(200,200,200,1)' : p1.color);
+      ctx.fillRect(x0, y0m, bwPx - 2, bhPx - 2);
 
-  // 押下フィードバック
-  if (isButtonPressed(p2,i)) { ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fillRect(x0,y0p,bwPx-2,bhPx-2); }
-  if (isButtonPressed(p1,i)) { ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fillRect(x0,y0m,bwPx-2,bhPx-2); }
+      // 押下フィードバック
+      if (isButtonPressed(p2, i)) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(x0, y0p, bwPx - 2, bhPx - 2); }
+      if (isButtonPressed(p1, i)) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(x0, y0m, bwPx - 2, bhPx - 2); }
 
-  // 技名
-  ctx.fillStyle='#fff'; ctx.font=`${Math.floor(bhPx*0.25)}px Gonta`;
-  ctx.fillText(skill2.name, x0 + bwPx/2, bhPx*0.35);
-  ctx.fillText(skill1.name, x0 + bwPx/2, y0m + bhPx*0.35);
+      // 技名
+      ctx.fillStyle = '#fff'; ctx.font = `${Math.floor(bhPx * 0.22)}px Gonta`;
+      ctx.fillText(skill2.name, x0 + bwPx / 2, bhPx * 0.3);
+      ctx.fillText(skill1.name, x0 + bwPx / 2, y0m + bhPx * 0.35);
 
-  // コストまたは必要Pの星形
-  const starR = 70 * scaleY; // PItem.size = 70
-  if (unlocked2) {
-    ctx.font = `${Math.floor(bhPx*0.3)}px Gonta`;
-    ctx.fillText(skill2.cost, x0 + bwPx/2, bhPx*0.75);
-  } else {
-    for (let s = 0; s < skill2.unlockP; s++) {
-      const starX = x0 + bwPx/2 - ((skill2.unlockP-1)*(starR)) + s*(starR*2);
-      const starY = bhPx*0.75;
-      ctx.save(); ctx.translate(starX, starY);
-      // 星形
-      ctx.beginPath();
-      for (let k=0; k<5; k++){
-        const ang = k*(Math.PI*2/5) - Math.PI/2;
-        ctx.lineTo(Math.cos(ang)*starR, Math.sin(ang)*starR);
-        const mid = ang + Math.PI/5;
-        ctx.lineTo(Math.cos(mid)*(starR/2), Math.sin(mid)*(starR/2));
+      // コスト or 必要Pの星形表示
+      const starSize = 70 * 2 * 0.8 * scaleY; // =70
+      const gap = starSize * 1.2;
+      // p2
+      if (unlocked2) {
+        ctx.font = `${Math.floor(bhPx * 0.3)}px Gonta`;
+        ctx.fillText(skill2.cost, x0 + bwPx / 2, bhPx * 0.75);
+      } else {
+        const maxP = skill2.unlockP;
+        const haveP = Math.min(p2.pCount - p2.skills[i - 1]._cumUnlockP, maxP);
+        const startX = x0 + bwPx / 2 - (gap * (maxP - 1)) / 2;
+        for (let s = 0; s < maxP; s++) {
+          const cx = startX + s * gap;
+          const cy = bhPx * 0.75;
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.beginPath();
+          for (let k = 0; k < 5; k++) {
+            const ang = (Math.PI * 2 / 5) * k - Math.PI / 2;
+            ctx.lineTo(Math.cos(ang) * (starSize / 2), Math.sin(ang) * (starSize / 2));
+            const mid = ang + Math.PI / 5;
+            ctx.lineTo(Math.cos(mid) * (starSize / 4), Math.sin(mid) * (starSize / 4));
+          }
+          ctx.closePath();
+          ctx.fillStyle = s < haveP ? '#ff0' : 'rgba(100,100,100,1)';
+          ctx.fill();
+          ctx.restore();
+        }
       }
-      ctx.closePath();
-      ctx.fillStyle = 'rgba(100,100,100,1)';
-      ctx.fill(); ctx.restore();
-    }
-  }
-  if (unlocked1) {
-    ctx.font = `${Math.floor(bhPx*0.3)}px Gonta`;
-    ctx.fillText(skill1.cost, x0 + bwPx/2, y0m + bhPx*0.75);
-  } else {
-    for (let s = 0; s < skill1.unlockP; s++) {
-      const starX = x0 + bwPx/2 - ((skill1.unlockP-1)*(starR)) + s*(starR*2);
-      const starY = y0m + bhPx*0.75;
-      ctx.save(); ctx.translate(starX, starY);
-      ctx.beginPath();
-      for (let k=0; k<5; k++){
-        const ang = k*(Math.PI*2/5) - Math.PI/2;
-        ctx.lineTo(Math.cos(ang)*starR, Math.sin(ang)*starR);
-        const mid = ang + Math.PI/5;
-        ctx.lineTo(Math.cos(mid)*(starR/2), Math.sin(mid)*(starR/2));
+      // p1
+      if (unlocked1) {
+        ctx.font = `${Math.floor(bhPx * 0.3)}px Gonta`;
+        ctx.fillText(skill1.cost, x0 + bwPx / 2, y0m + bhPx * 0.75);
+      } else {
+        const maxP = skill1.unlockP;
+        const haveP = Math.min(p1.pCount - p1.skills[i - 1]._cumUnlockP, maxP);
+        const startX = x0 + bwPx / 2 - (gap * (maxP - 1)) / 2;
+        for (let s = 0; s < maxP; s++) {
+          const cx = startX + s * gap;
+          const cy = y0m + bhPx * 0.75;
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.beginPath();
+          for (let k = 0; k < 5; k++) {
+            const ang = (Math.PI * 2 / 5) * k - Math.PI / 2;
+            ctx.lineTo(Math.cos(ang) * (starSize / 2), Math.sin(ang) * (starSize / 2));
+            const mid = ang + Math.PI / 5;
+            ctx.lineTo(Math.cos(mid) * (starSize / 4), Math.sin(mid) * (starSize / 4));
+          }
+          ctx.closePath();
+          ctx.fillStyle = s < haveP ? '#ff0' : 'rgba(100,100,100,1)';
+          ctx.fill();
+          ctx.restore();
+        }
       }
-      ctx.closePath();
-      ctx.fillStyle = 'rgba(100,100,100,1)';
-      ctx.fill(); ctx.restore();
     }
-  }
-}
     const barH = 130 * scaleY;
     ctx.fillStyle = p2.color; ctx.fillRect(0, bhPx + 2, canvas.width * (p2.cost / p2.maxCost), barH);
     if (p2.cost >= p2.maxCost) { ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(0, bhPx + 2, canvas.width, barH); }
@@ -531,7 +540,7 @@ for (let i = 0; i < 3; i++) {
     ctx.fillStyle = '#fff'; ctx.font = `${barH * 0.8}px Gonta`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(`${Math.floor(p2.cost)}/${p2.maxCost}`, canvas.width / 2, bhPx + 2 + barH / 2);
     ctx.fillText(`${Math.floor(p1.cost)}/${p1.maxCost}`, canvas.width / 2, canvas.height - bhPx - 2 - barH / 2);
-    
+
     // メニュー描画
     if (menuOpen) {
       ctx.save(); ctx.scale(scaleX, scaleY);
@@ -616,7 +625,7 @@ for (let i = 0; i < 3; i++) {
           pi.y - half < pl.y + pl.height
         ) {
           pl.pCount++;
-          pl.speed = Math.min(pl.maxSpeed, pl.baseSpeed + 0.4 * pl.pCount);
+          pl.speed = Math.min(pl.maxSpeed, pl.baseSpeed + 0.3 * pl.pCount);
           caught = true;
         }
       });
