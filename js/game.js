@@ -136,6 +136,7 @@
       this.vy = 200; // 仮想単位/秒
       if (this.owner === p2) this.vy *= -1;
       this.size = 70;
+      this.color = '#ff0';
     }
     update(dt) {
       this.y += this.vy * dt;
@@ -156,7 +157,7 @@
         ctx.lineTo(Math.cos(midAngle) * (r / 2), Math.sin(midAngle) * (r / 2));
       }
       ctx.closePath();
-      ctx.fillStyle = '#ff0';
+      ctx.fillStyle = this.color;
       ctx.fill();
       ctx.restore();
     }
@@ -443,41 +444,79 @@
     ctx.restore();
 
     // UI描画
-    const bhPx = virtualButtonHeight * scaleY, bwPx = canvas.width / 3;
-    ctx.textAlign = 'center';
-    for (let i = 0; i < 3; i++) {
-      const x0 = i * bwPx, y0p = 0, y0m = canvas.height - bhPx;
-      const skill2 = p2.skills[i], skill1 = p1.skills[i];
-      const unlocked2 = p2.pCount >= skill2._cumUnlockP;
-      const ready2 = p2.cost >= skill2.cost && p2.cooldowns[i] <= 0;
-      const unlocked1 = p1.pCount >= skill1._cumUnlockP;
-      const ready1 = p1.cost >= skill1.cost && p1.cooldowns[i] <= 0;
+const bhPx = virtualButtonHeight * scaleY, bwPx = canvas.width / 3;
+ctx.textAlign = 'center';
+for (let i = 0; i < 3; i++) {
+  const x0 = i * bwPx, y0p = 0, y0m = canvas.height - bhPx;
+  const skill2 = p2.skills[i], skill1 = p1.skills[i];
+  const unlocked2 = p2.pCount >= skill2._cumUnlockP;
+  const ready2    = unlocked2 && p2.cost >= skill2.cost && p2.cooldowns[i] <= 0;
+  const unlocked1 = p1.pCount >= skill1._cumUnlockP;
+  const ready1    = unlocked1 && p1.cost >= skill1.cost && p1.cooldowns[i] <= 0;
 
-      // p2ボタン色
-      if (!unlocked2) ctx.fillStyle = 'rgba(130,130,130,1)';
-      else if (!ready2) ctx.fillStyle = 'rgba(200,200,200,1)';
-      else ctx.fillStyle = p2.color;
-      ctx.fillRect(x0, y0p, bwPx - 2, bhPx - 2);
+  // ボタンの色
+  ctx.fillStyle = !unlocked2
+    ? 'rgba(130,130,130,1)'
+    : (!ready2 ? 'rgba(200,200,200,1)' : p2.color);
+  ctx.fillRect(x0, y0p, bwPx-2, bhPx-2);
+  ctx.fillStyle = !unlocked1
+    ? 'rgba(130,130,130,1)'
+    : (!ready1 ? 'rgba(200,200,200,1)' : p1.color);
+  ctx.fillRect(x0, y0m, bwPx-2, bhPx-2);
 
-      // p1ボタン色
-      if (!unlocked1) ctx.fillStyle = 'rgba(130,130,130,1)';
-      else if (!ready1) ctx.fillStyle = 'rgba(200,200,200,1)';
-      else ctx.fillStyle = p1.color;
-      ctx.fillRect(x0, y0m, bwPx - 2, bhPx - 2);
+  // 押下フィードバック
+  if (isButtonPressed(p2,i)) { ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fillRect(x0,y0p,bwPx-2,bhPx-2); }
+  if (isButtonPressed(p1,i)) { ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fillRect(x0,y0m,bwPx-2,bhPx-2); }
 
-      if (isButtonPressed(p2, i)) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(x0, y0p, bwPx - 2, bhPx - 2); }
-      if (isButtonPressed(p1, i)) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(x0, y0m, bwPx - 2, bhPx - 2); }
+  // 技名
+  ctx.fillStyle='#fff'; ctx.font=`${Math.floor(bhPx*0.25)}px Gonta`;
+  ctx.fillText(skill2.name, x0 + bwPx/2, bhPx*0.35);
+  ctx.fillText(skill1.name, x0 + bwPx/2, y0m + bhPx*0.35);
 
-      ctx.fillStyle = '#fff'; ctx.font = `${Math.floor(bhPx * 0.25)}px Gonta`;
-      ctx.fillText(p2.skills[i].name, x0 + bwPx / 2, bhPx * 0.35);
-      ctx.font = `${Math.floor(bhPx * 0.3)}px Gonta`;
-      ctx.fillText(p2.skills[i].cost, x0 + bwPx / 2, bhPx * 0.75);
-
-      ctx.fillStyle = '#fff'; ctx.font = `${Math.floor(bhPx * 0.25)}px Gonta`;
-      ctx.fillText(p1.skills[i].name, x0 + bwPx / 2, y0m + bhPx * 0.35);
-      ctx.font = `${Math.floor(bhPx * 0.3)}px Gonta`;
-      ctx.fillText(p1.skills[i].cost, x0 + bwPx / 2, y0m + bhPx * 0.75);
+  // コストまたは必要Pの星形
+  const starR = 70 * scaleY; // PItem.size = 70
+  if (unlocked2) {
+    ctx.font = `${Math.floor(bhPx*0.3)}px Gonta`;
+    ctx.fillText(skill2.cost, x0 + bwPx/2, bhPx*0.75);
+  } else {
+    for (let s = 0; s < skill2.unlockP; s++) {
+      const starX = x0 + bwPx/2 - ((skill2.unlockP-1)*(starR)) + s*(starR*2);
+      const starY = bhPx*0.75;
+      ctx.save(); ctx.translate(starX, starY);
+      // 星形
+      ctx.beginPath();
+      for (let k=0; k<5; k++){
+        const ang = k*(Math.PI*2/5) - Math.PI/2;
+        ctx.lineTo(Math.cos(ang)*starR, Math.sin(ang)*starR);
+        const mid = ang + Math.PI/5;
+        ctx.lineTo(Math.cos(mid)*(starR/2), Math.sin(mid)*(starR/2));
+      }
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(100,100,100,1)';
+      ctx.fill(); ctx.restore();
     }
+  }
+  if (unlocked1) {
+    ctx.font = `${Math.floor(bhPx*0.3)}px Gonta`;
+    ctx.fillText(skill1.cost, x0 + bwPx/2, y0m + bhPx*0.75);
+  } else {
+    for (let s = 0; s < skill1.unlockP; s++) {
+      const starX = x0 + bwPx/2 - ((skill1.unlockP-1)*(starR)) + s*(starR*2);
+      const starY = y0m + bhPx*0.75;
+      ctx.save(); ctx.translate(starX, starY);
+      ctx.beginPath();
+      for (let k=0; k<5; k++){
+        const ang = k*(Math.PI*2/5) - Math.PI/2;
+        ctx.lineTo(Math.cos(ang)*starR, Math.sin(ang)*starR);
+        const mid = ang + Math.PI/5;
+        ctx.lineTo(Math.cos(mid)*(starR/2), Math.sin(mid)*(starR/2));
+      }
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(100,100,100,1)';
+      ctx.fill(); ctx.restore();
+    }
+  }
+}
     const barH = 130 * scaleY;
     ctx.fillStyle = p2.color; ctx.fillRect(0, bhPx + 2, canvas.width * (p2.cost / p2.maxCost), barH);
     if (p2.cost >= p2.maxCost) { ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(0, bhPx + 2, canvas.width, barH); }
@@ -492,6 +531,7 @@
     ctx.fillStyle = '#fff'; ctx.font = `${barH * 0.8}px Gonta`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(`${Math.floor(p2.cost)}/${p2.maxCost}`, canvas.width / 2, bhPx + 2 + barH / 2);
     ctx.fillText(`${Math.floor(p1.cost)}/${p1.maxCost}`, canvas.width / 2, canvas.height - bhPx - 2 - barH / 2);
+    
     // メニュー描画
     if (menuOpen) {
       ctx.save(); ctx.scale(scaleX, scaleY);
@@ -564,16 +604,24 @@
     //4.P取得
     pItems = pItems.filter(pi => {
       let caught = false;
+      const half = pi.size / 2;
       [p1, p2].forEach(pl => {
-        if (!caught && pi.x >= pl.x && pi.x <= pl.x + pl.width &&
-          pi.y >= pl.y && pi.y <= pl.y + pl.height) {
-          pl.pCount++; pl.speed = Math.min(pl.maxSpeed, pl.baseSpeed + 0.2 * pl.pCount);
+        if (caught) return;
+        // PItem の矩形： (pi.x-half, pi.y-half) から (pi.x+half, pi.y+half)
+        // Player の矩形： (pl.x, pl.y) から (pl.x+pl.width, pl.y+pl.height)
+        if (
+          pi.x + half > pl.x &&
+          pi.x - half < pl.x + pl.width &&
+          pi.y + half > pl.y &&
+          pi.y - half < pl.y + pl.height
+        ) {
+          pl.pCount++;
+          pl.speed = Math.min(pl.maxSpeed, pl.baseSpeed + 0.4 * pl.pCount);
           caught = true;
         }
       });
       return !caught && !pi.isOff();
     });
-
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
