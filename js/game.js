@@ -467,8 +467,8 @@
 
       // 技名
       ctx.fillStyle = '#fff'; ctx.font = `${Math.floor(bhPx * 0.22)}px Gonta`;
-      ctx.fillText(skill2.name, x0 + bwPx / 2, bhPx * 0.3);
-      ctx.fillText(skill1.name, x0 + bwPx / 2, y0m + bhPx * 0.35);
+      ctx.fillText(skill2.name, x0 + bwPx / 2, bhPx * 0.25);
+      ctx.fillText(skill1.name, x0 + bwPx / 2, y0m + bhPx * 0.25);
 
       // コスト or 必要Pの星形表示
       const starSize = 70 * 2 * 0.8 * scaleY; // =70
@@ -476,14 +476,14 @@
       // p2
       if (unlocked2) {
         ctx.font = `${Math.floor(bhPx * 0.3)}px Gonta`;
-        ctx.fillText(skill2.cost, x0 + bwPx / 2, bhPx * 0.75);
+        ctx.fillText(skill2.cost, x0 + bwPx / 2, bhPx * 0.7);
       } else {
         const maxP = skill2.unlockP;
         const haveP = Math.min(p2.pCount - p2.skills[i - 1]._cumUnlockP, maxP);
         const startX = x0 + bwPx / 2 - (gap * (maxP - 1)) / 2;
         for (let s = 0; s < maxP; s++) {
           const cx = startX + s * gap;
-          const cy = bhPx * 0.75;
+          const cy = bhPx * 0.7;
           ctx.save();
           ctx.translate(cx, cy);
           ctx.beginPath();
@@ -502,14 +502,14 @@
       // p1
       if (unlocked1) {
         ctx.font = `${Math.floor(bhPx * 0.3)}px Gonta`;
-        ctx.fillText(skill1.cost, x0 + bwPx / 2, y0m + bhPx * 0.75);
+        ctx.fillText(skill1.cost, x0 + bwPx / 2, y0m + bhPx * 0.7);
       } else {
         const maxP = skill1.unlockP;
         const haveP = Math.min(p1.pCount - p1.skills[i - 1]._cumUnlockP, maxP);
         const startX = x0 + bwPx / 2 - (gap * (maxP - 1)) / 2;
         for (let s = 0; s < maxP; s++) {
           const cx = startX + s * gap;
-          const cy = y0m + bhPx * 0.75;
+          const cy = y0m + bhPx * 0.7;
           ctx.save();
           ctx.translate(cx, cy);
           ctx.beginPath();
@@ -625,7 +625,7 @@
           pi.y - half < pl.y + pl.height
         ) {
           pl.pCount++;
-          pl.speed = Math.min(pl.maxSpeed, pl.baseSpeed + 0.3 * pl.pCount);
+          pl.speed = Math.min(pl.maxSpeed, pl.baseSpeed + 0.2 * pl.pCount);
           caught = true;
         }
       });
