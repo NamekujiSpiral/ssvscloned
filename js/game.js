@@ -377,6 +377,65 @@
   canvas.addEventListener('pointercancel', e => { swipeStart = null; pressedButtons.delete(e.pointerId); });
 
 
+  function reset() {
+    gameTime = 0;
+    bullets = [];
+    boxes = [];
+    pItems = [];
+    p1 = new Player(VIRTUAL_HEIGHT - virtualButtonHeight - marginVirtual - 200, 2, playerColors[0]);
+    p2 = new Player(virtualButtonHeight + marginVirtual, 2, playerColors[1]);
+    return getState();
+  }
+
+  function step({ dir, skillIdx }) {
+    p2.direction = dir;
+    if (skillIdx !== null) fire(p2, skillIdx);
+
+    const dt = 1 / 30;
+    updateAll(dt);
+
+    // 3) state, reward, done を計算
+    const nextState = getState();
+    const reward = computeReward(bullets);
+    const done = checkGameOver();
+
+    return { nextState, reward, done };
+  }
+
+  function getState() {
+    return {
+      // プレイヤー位置／残コスト／クールタイム
+      p1: [p1.x, p1.y, p1.cost, p1.skills],
+      p2: [p2.x, p2.y, p2.cost, p2.skills],
+      // 弾情報（上位N発まで位置・速度・サイズを正規化して並べる）
+      bullets: bullets.slice(0, N).flatMap(b => [b.x / VIRTUAL_WIDTH, b.y / VIRTUAL_HEIGHT, b.vx / SCALE, b.vy / SCALE, b.size / MAX_SIZE]),
+      // PItem情報（上位M個）
+      pItems: pItems.slice(0, M).flatMap(pi => [pi.x / VIRTUAL_WIDTH, pi.y / VIRTUAL_HEIGHT]),
+      // 必要なら他の特徴量も追加
+    };
+  }
+
+  function computeReward(b) {
+    for (let v of b) {
+      checkHit(v);
+    }
+
+    let rew = 0;
+    if (breakTarget === p1) {
+      rew += 100;
+    }
+    else if (breakTarget === p2) {
+      rew -= 100;
+    }
+    else {
+      rew = -0.01;
+    }
+    return rew;
+  }
+
+  function checkGameOver() {
+  }
+
   function fire(player, idx) {
     const skill = player.skills[idx];
     if (player.pCount < skill._cumUnlockP) return;
@@ -448,6 +507,14 @@
   function updateAI(player, dt) {
     // 移動方向を決めて反映
     player.direction = decideMove(player);
+  }
+
+  function updateAll(dt) {
+    p1.update(dt); p2.update(dt);
+    bullets.forEach(b => b.update(dt));
+    pItems.forEach(pi => pi.update(dt));
+    boxes.forEach(box => box.update(dt));
+    //todo P取得など
   }
 
   let last = performance.now();
