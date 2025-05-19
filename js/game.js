@@ -338,6 +338,7 @@
     if (y > VIRTUAL_HEIGHT - bh) { pressedButtons.set(e.pointerId, { player: p1, idx }); return; }
     if (!gameOver) {
       const pl = y > VIRTUAL_HEIGHT / 2 ? p1 : p2;
+      if (pl == p2 && autoOpponent) return;
       pl.direction = x < VIRTUAL_WIDTH / 2 ? -1 : 1;
     }
   });
@@ -365,6 +366,7 @@
       const y = (e.clientY - rect.top) / scaleY;
       const idxUp = Math.floor(x / (VIRTUAL_WIDTH / 3));
       const { player, idx } = info;
+      if (player == 2 && autoOpponent) return;
       if ((player === p2 && y < virtualButtonHeight && idxUp === idx) ||
         (player === p1 && y > VIRTUAL_HEIGHT - virtualButtonHeight && idxUp === idx)) {
         fire(player, idx);
@@ -417,6 +419,35 @@
       if (info.player === player && info.idx === idx) return true;
     }
     return false;
+  }
+
+  function findNearest(P, player) {
+    let min = Infinity;
+    let mini;
+    for (let i in P) {
+      let d = Math.abs(P[i].x - player.x) + Math.abs(P[i].y - player.y);
+      if (min > d) {
+        min = d;
+        mini = P[i];
+      }
+    }
+    return mini;
+  }
+
+  function decideMove(player) {
+    //PItem 取得
+    const nearest = findNearest(pItems, player);
+    if (nearest) {
+      return nearest.x - nearest.size / 2 < player.x ? -1 : +1;
+    }
+
+    //何もしない
+    return player.direction;
+  }
+
+  function updateAI(player, dt) {
+    // 移動方向を決めて反映
+    player.direction = decideMove(player);
   }
 
   let last = performance.now();
@@ -580,6 +611,9 @@
       nextSpawn++;
     }
 
+    if (autoOpponent) {
+      updateAI(p2, dt);
+    }
     // 2. 更新
     p1.update(dt); p2.update(dt);
     bullets.forEach(b => b.update(dt));
