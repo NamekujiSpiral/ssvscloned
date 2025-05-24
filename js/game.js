@@ -40,37 +40,37 @@
   const characters = [
     {
       name: 'クジラ', skills: [
-        { name: 'ヘヴィショット', cost: 2, size: 220, speed: 7.5, behavior: 'straight', unlockP: 0 },
-        { name: 'スーパーヘヴィ', cost: 5, size: 440, speed: 8, behavior: 'straight', unlockP: 3 },
-        { name: 'だんまく', cost: 9, size: 150, speed: 4, behavior: 'danmaku', unlockP: 2 }
+        { name: 'ヘヴィショット', cost: 2, size: 220, speed: 7.5, behavior: 'straight', unlockP: 0, id: 61 },
+        { name: 'スーパーヘヴィ', cost: 5, size: 440, speed: 8, behavior: 'straight', unlockP: 3, id: 62 },
+        { name: 'だんまく', cost: 9, size: 150, speed: 4, behavior: 'danmaku', unlockP: 2, id: 63 }
       ]
     },
     {
       name: 'ウサギ', skills: [
-        { name: 'ショット', cost: 2, size: 80, speed: 12, behavior: 'straight', unlockP: 0 },
-        { name: 'だましレフト', cost: 3, size: 80, speed: 12, behavior: 'curveLeft', unlockP: 2 },
-        { name: 'スピードショット', cost: 7, size: 80, speed: 50, behavior: 'straight', unlockP: 2 }
+        { name: 'ショット', cost: 2, size: 80, speed: 12, behavior: 'straight', unlockP: 0, id: 31 },
+        { name: 'だましレフト', cost: 3, size: 80, speed: 12, behavior: 'curveLeft', unlockP: 2, id: 32 },
+        { name: 'スピードショット', cost: 7, size: 80, speed: 50, behavior: 'straight', unlockP: 2, id: 33 }
       ]
     },
     {
       name: 'カエル', skills: [
-        { name: 'プチショット', cost: 1, size: 30, speed: 6, behavior: 'straight', unlockP: 0 },
-        { name: 'プチツイン', cost: 2, size: 30, speed: 6.2, behavior: 'twin', unlockP: 1 },
-        { name: 'ジャンボふうせん', cost: 6, size: 30, speed: 6, behavior: 'balloon', unlockP: 2 }
+        { name: 'プチショット', cost: 1, size: 30, speed: 6, behavior: 'straight', unlockP: 0, id: 81 },
+        { name: 'プチツイン', cost: 2, size: 30, speed: 6.2, behavior: 'twin', unlockP: 1, id: 82 },
+        { name: 'ジャンボふうせん', cost: 6, size: 30, speed: 6, behavior: 'balloon', unlockP: 2, id: 83 }
       ]
     },
     {
       name: 'ピエロ', skills: [
-        { name: 'ピエロショット', cost: 2, size: 80, speed: 12, behavior: 'straight', unlockP: 0 },
-        { name: 'ミラーショット', cost: 4, size: 80, speed: 12, behavior: 'mirror', unlockP: 2 },
-        { name: 'だましダブル', cost: 5, size: 80, speed: 12, behavior: 'trickDouble', unlockP: 2 }
+        { name: 'ピエロショット', cost: 2, size: 80, speed: 12, behavior: 'straight', unlockP: 0, id: 151 },
+        { name: 'ミラーショット', cost: 4, size: 80, speed: 12, behavior: 'mirror', unlockP: 2, id: 152 },
+        { name: 'だましダブル', cost: 5, size: 80, speed: 12, behavior: 'trickDouble', unlockP: 2, id: 153 }
       ]
     },
     {
       name: 'test', skills: [
-        { name: 'test1', cost: 0, size: 200, speed: 3, behavior: 'straight', unlockP: 0 },
-        { name: 'test2', cost: 3, size: 600, speed: 30, behavior: 'twin', unlockP: 0 },
-        { name: 'testicle', cost: 1, size: 10, speed: 4, behavior: 'mirror', unlockP: 2 }
+        { name: 'test1', cost: 0, size: 200, speed: 3, behavior: 'straight', unlockP: 0, id: 901 },
+        { name: 'test2', cost: 3, size: 600, speed: 30, behavior: 'twin', unlockP: 0, id: 902 },
+        { name: 'testicle', cost: 1, size: 10, speed: 4, behavior: 'mirror', unlockP: 2, id: 903 }
       ]
     }
   ];
@@ -187,6 +187,7 @@
       this.height = 180;
       this.x = (VIRTUAL_WIDTH - this.width) / 2;
       this.y = y;
+      this.character = charIndex;
       this.skills = characters[charIndex].skills;
       this.color = color;
       this.alive = true;
@@ -235,7 +236,7 @@
   }
 
   class Bullet {
-    constructor(x, y, vx, vy, owner, skill) {
+    constructor(x, y, vx, vy, owner, skill, skillidx) {
       this.x = x; this.y = y;
       this.vx = vx; this.vy = vy;
       this.owner = owner;
@@ -243,6 +244,7 @@
       this.size = skill.size;
       this.behavior = skill.behavior;
       this.passed = false;
+      this.id = skill.id;
     }
     update(dt) {
       if (gameOver) return;
@@ -396,23 +398,36 @@
 
     // 3) state, reward, done を計算
     const nextState = getState();
-    const reward = computeReward(bullets);
-    const done = checkGameOver();
+    const check = computeReward(bullets)[0];
+    const reward = check[0];
+    const done = check[1];
 
     return { nextState, reward, done };
   }
 
   function getState() {
-    return {
-      // プレイヤー位置／残コスト／クールタイム
-      p1: [p1.x, p1.y, p1.cost, p1.skills],
-      p2: [p2.x, p2.y, p2.cost, p2.skills],
-      // 弾情報（上位N発まで位置・速度・サイズを正規化して並べる）
-      bullets: bullets.slice(0, N).flatMap(b => [b.x / VIRTUAL_WIDTH, b.y / VIRTUAL_HEIGHT, b.vx / SCALE, b.vy / SCALE, b.size / MAX_SIZE]),
-      // PItem情報（上位M個）
-      pItems: pItems.slice(0, M).flatMap(pi => [pi.x / VIRTUAL_WIDTH, pi.y / VIRTUAL_HEIGHT]),
-      // 必要なら他の特徴量も追加
-    };
+    return [
+      p2.x / VIRTUAL_WIDTH,
+      p2.y / VIRTUAL_HEIGHT,
+      p2.cost / 10,
+      //...p2.cooldowns.map(cd => Math.min(cd, COOLDOWN_DURATION) / COOLDOWN_DURATION),
+      p2.character / 100,
+      // bullets: 最大 50 発まで
+      ...bullets.slice(0, 50).flatMap(b => [
+        b.x / VIRTUAL_WIDTH,
+        b.y / VIRTUAL_HEIGHT,
+        b.id / 1000,
+        b.vx / 100,
+        b.vy / 100,
+        b.size / 1000
+      ]),
+      // PItem: 最大 13 個
+      ...pItems.slice(0, 13).flatMap(pi => [
+        pi.x / VIRTUAL_WIDTH,
+        pi.y / VIRTUAL_HEIGHT
+      ]),
+      // 必要ならその他の変数も正規化して追加
+    ];
   }
 
   function computeReward(b) {
@@ -420,17 +435,20 @@
       checkHit(v);
     }
 
+    let done = false;
     let rew = 0;
     if (breakTarget === p1) {
       rew += 100;
+      done = true;
     }
     else if (breakTarget === p2) {
       rew -= 100;
+      done = true;
     }
     else {
       rew = -0.01;
     }
-    return rew;
+    return [rew, done];
   }
 
   function checkGameOver() {
@@ -514,7 +532,52 @@
     bullets.forEach(b => b.update(dt));
     pItems.forEach(pi => pi.update(dt));
     boxes.forEach(box => box.update(dt));
-    //todo P取得など
+
+    // 3. 箱－弾 衝突判定
+    bullets = bullets.filter(b => {
+      let hitBox = false;
+      boxes.forEach((box, i) => {
+        if (!hitBox) {
+          const halfB = b.size / 2;
+          const halfBox = box.size / 2;
+          if (b.x + halfB > box.x - halfBox && b.x - halfB < box.x + halfBox &&
+            b.y + halfB > box.y - halfBox && b.y - halfB < box.y + halfBox) {
+            box.shakeDirection = -Math.sign(b.vy);
+            box.shakeTime = box.shakeDuration;
+            box.hp--;
+            if (box.hp <= 0) { dropP(box.x, box.y, b.owner); boxes.splice(i, 1); }
+            hitBox = true;
+          }
+        }
+      });
+      // Boxに当たった弾は消滅
+      if (hitBox) return false;
+      // 通常弾処理
+      return !checkHit(b) && !b.isOff();
+    });
+
+
+    //4.P取得
+    pItems = pItems.filter(pi => {
+      let caught = false;
+      const half = pi.size / 2;
+      [p1, p2].forEach(pl => {
+        if (caught) return;
+        // PItem の矩形： (pi.x-half, pi.y-half) から (pi.x+half, pi.y+half)
+        // Player の矩形： (pl.x, pl.y) から (pl.x+pl.width, pl.y+pl.height)
+        if (
+          pi.x + half > pl.x &&
+          pi.x - half < pl.x + pl.width &&
+          pi.y + half > pl.y &&
+          pi.y - half < pl.y + pl.height
+        ) {
+          pl.pCount++;
+          pl.speed = Math.min(pl.maxSpeed, pl.baseSpeed + 0.2 * pl.pCount);
+          caught = true;
+        }
+      });
+      return !caught && !pi.isOff();
+    });
   }
 
   let last = performance.now();
