@@ -378,57 +378,60 @@
   });
   canvas.addEventListener('pointercancel', e => { swipeStart = null; pressedButtons.delete(e.pointerId); });
 
+  function createEnv() {
+    function reset() {
+      gameTime = 0;
+      bullets = [];
+      boxes = [];
+      pItems = [];
+      p1 = new Player(VIRTUAL_HEIGHT - virtualButtonHeight - marginVirtual - 200, 2, playerColors[0]);
+      p2 = new Player(virtualButtonHeight + marginVirtual, 2, playerColors[1]);
+      return getState();
+    }
 
-  function reset() {
-    gameTime = 0;
-    bullets = [];
-    boxes = [];
-    pItems = [];
-    p1 = new Player(VIRTUAL_HEIGHT - virtualButtonHeight - marginVirtual - 200, 2, playerColors[0]);
-    p2 = new Player(virtualButtonHeight + marginVirtual, 2, playerColors[1]);
-    return getState();
-  }
+    function step({ dir, skillIdx }) {
+      p2.direction = dir;
+      if (skillIdx !== null) fire(p2, skillIdx);
 
-  function step({ dir, skillIdx }) {
-    p2.direction = dir;
-    if (skillIdx !== null) fire(p2, skillIdx);
+      const dt = 1 / 30;
+      gameTime += dt;
+      updateAll(dt);
 
-    const dt = 1 / 30;
-    gameTime += dt;
-    updateAll(dt);
+      // 3) state, reward, done を計算
+      const nextState = getState();
+      const check = computeReward(bullets);
+      const reward = check[0];
+      const done = check[1];
 
-    // 3) state, reward, done を計算
-    const nextState = getState();
-    const check = computeReward(bullets)[0];
-    const reward = check[0];
-    const done = check[1];
+      return { nextState, reward, done };
+    }
 
-    return { nextState, reward, done };
-  }
+    function getState() {
+      return [
+        p2.x / VIRTUAL_WIDTH,
+        p2.y / VIRTUAL_HEIGHT,
+        p2.cost / 10,
+        //...p2.cooldowns.map(cd => Math.min(cd, COOLDOWN_DURATION) / COOLDOWN_DURATION),
+        p2.character / 100,
+        // bullets: 最大 50 発まで
+        ...bullets.slice(0, 50).flatMap(b => [
+          b.x / VIRTUAL_WIDTH,
+          b.y / VIRTUAL_HEIGHT,
+          b.id / 1000,
+          b.vx / 100,
+          b.vy / 100,
+          b.size / 1000
+        ]),
+        // PItem: 最大 13 個
+        ...pItems.slice(0, 13).flatMap(pi => [
+          pi.x / VIRTUAL_WIDTH,
+          pi.y / VIRTUAL_HEIGHT
+        ]),
+        // 必要ならその他の変数も正規化して追加
+      ];
+    }
 
-  function getState() {
-    return [
-      p2.x / VIRTUAL_WIDTH,
-      p2.y / VIRTUAL_HEIGHT,
-      p2.cost / 10,
-      //...p2.cooldowns.map(cd => Math.min(cd, COOLDOWN_DURATION) / COOLDOWN_DURATION),
-      p2.character / 100,
-      // bullets: 最大 50 発まで
-      ...bullets.slice(0, 50).flatMap(b => [
-        b.x / VIRTUAL_WIDTH,
-        b.y / VIRTUAL_HEIGHT,
-        b.id / 1000,
-        b.vx / 100,
-        b.vy / 100,
-        b.size / 1000
-      ]),
-      // PItem: 最大 13 個
-      ...pItems.slice(0, 13).flatMap(pi => [
-        pi.x / VIRTUAL_WIDTH,
-        pi.y / VIRTUAL_HEIGHT
-      ]),
-      // 必要ならその他の変数も正規化して追加
-    ];
+    return { reset, step, getState }
   }
 
   function computeReward(b) {
@@ -454,6 +457,31 @@
 
   function checkGameOver() {
   }
+
+  const env = createEnv();
+
+  (function testEnv() {
+  // ① reset のテスト
+  const s0 = env.reset();
+  console.assert(Array.isArray(s0), 'state は配列');
+  console.assert(s0.every(v=>v>=0 && v<=1), 'すべて 0〜1');
+
+  // ② step のテスト
+  const { nextState, reward, done } = env.step({ dir: 0, skillIdx: null });
+  console.assert(Array.isArray(nextState), 'nextState は配列');
+  console.assert(typeof reward === 'number', 'reward は数値');
+  console.assert(typeof done === 'boolean', 'done は真偽');
+
+  // ③ エピソードを回してみる
+  env.reset();
+  let total = 0, d=false;
+  for (let i=0; i<1000 && !d; i++) {
+    const res = env.step({ dir: 0, skillIdx: null });
+    total += res.reward;
+    d = res.done;
+  }
+  console.log('テスト完了:', d?'終了':'途中打ち切り', '累積報酬=', total);
+})();
 
   function fire(player, idx) {
     const skill = player.skills[idx];
@@ -584,6 +612,7 @@
       return !caught && !pi.isOff();
     });
   }
+
 
   /*
   let last = performance.now();
