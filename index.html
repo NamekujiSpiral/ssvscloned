@@ -1,13 +1,20 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>ssv</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
+
 <body>
+  <!-- TensorFlow.js の読み込み -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.3.0/dist/tf.min.js"></script>
+
+  <!-- その下で game.js や train.js を読み込む -->
   <canvas id="gameCanvas"></canvas>
   <script src="js/game.js"></script>
 </body>
+
 </html>

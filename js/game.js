@@ -378,6 +378,25 @@
   });
   canvas.addEventListener('pointercancel', e => { swipeStart = null; pressedButtons.delete(e.pointerId); });
 
+  // ── ハイパーパラメータ ──
+  const MAX_EPISODES = 500;    // 総エピソード数
+  const batchSize = 64;     // ミニバッチサイズ
+  const gamma = 0.99;   // 割引率
+  let epsilon = 1.0;    // ε-greedy の初期 ε
+  const epsilonMin = 0.05;   // ε の最小値
+  const epsilonDecay = 0.995;  // エピソード毎の ε 減衰率
+
+  // ── RL 環境の初期化 ──
+  const env = createEnv();
+  // 状態／行動空間の次元は reset() 後に確定
+  const initState = env.reset();
+  const stateDim = initState.length;
+  const skillCount = p2.skills.length + 1;
+  const actionDim = 2 * skillCount;
+
+  // ── DQN モデルを作成 ──
+  const model = createDQN(stateDim, actionDim);
+
   function createEnv() {
     function reset() {
       gameTime = 0;
@@ -389,9 +408,13 @@
       return getState();
     }
 
-    function step({ dir, skillIdx }) {
+    function step({ dir, skillId }) {
       p2.direction = dir;
-      if (skillIdx !== null) fire(p2, skillIdx);
+      if (skillId !== null) {
+        // id → 配列インデックスに変換
+        const idx = p2.skills.findIndex(s => s.id === skillId);
+        if (idx >= 0) fire(p2, idx);
+      }
 
       const dt = 1 / 30;
       gameTime += dt;
@@ -407,28 +430,46 @@
     }
 
     function getState() {
-      return [
+      const s = [
         p2.x / VIRTUAL_WIDTH,
         p2.y / VIRTUAL_HEIGHT,
         p2.cost / 10,
-        //...p2.cooldowns.map(cd => Math.min(cd, COOLDOWN_DURATION) / COOLDOWN_DURATION),
         p2.character / 100,
-        // bullets: 最大 50 発まで
-        ...bullets.slice(0, 50).flatMap(b => [
-          b.x / VIRTUAL_WIDTH,
-          b.y / VIRTUAL_HEIGHT,
-          b.id / 1000,
-          b.vx / 100,
-          b.vy / 100,
-          b.size / 1000
-        ]),
-        // PItem: 最大 13 個
-        ...pItems.slice(0, 13).flatMap(pi => [
-          pi.x / VIRTUAL_WIDTH,
-          pi.y / VIRTUAL_HEIGHT
-        ]),
-        // 必要ならその他の変数も正規化して追加
-      ];
+
+        p1.x / VIRTUAL_WIDTH,
+        p1.y / VIRTUAL_HEIGHT,
+        p1.cost / 10,
+        p1.character / 100
+      ]
+
+      // bullets: 50発分、なければゼロ埋め
+      for (let i = 0; i < 50; i++) {
+        if (i < bullets.length) {
+          const b = bullets[i];
+          s.push(
+            b.x / VIRTUAL_WIDTH,
+            b.y / VIRTUAL_HEIGHT,
+            b.id / 1000,
+            b.vx / 100,
+            b.vy / 100,
+            b.size / 1000
+          );
+        } else {
+          // 6要素分ゼロ
+          s.push(0, 0, 0, 0, 0, 0);
+        }
+      }
+
+      for (let i = 0; i < 13; i++) {
+        if (i < pItems.length) {
+          const pi = pItems[i];
+          s.push(pi.x / VIRTUAL_WIDTH, pi.y / VIRTUAL_HEIGHT);
+        } else {
+          s.push(0, 0);
+        }
+      }
+
+      return s;
     }
 
     return { reset, step, getState }
@@ -458,30 +499,172 @@
   function checkGameOver() {
   }
 
-  const env = createEnv();
-
-  (function testEnv() {
-  // ① reset のテスト
-  const s0 = env.reset();
-  console.assert(Array.isArray(s0), 'state は配列');
-  console.assert(s0.every(v=>v>=0 && v<=1), 'すべて 0〜1');
-
-  // ② step のテスト
-  const { nextState, reward, done } = env.step({ dir: 0, skillIdx: null });
-  console.assert(Array.isArray(nextState), 'nextState は配列');
-  console.assert(typeof reward === 'number', 'reward は数値');
-  console.assert(typeof done === 'boolean', 'done は真偽');
-
-  // ③ エピソードを回してみる
-  env.reset();
-  let total = 0, d=false;
-  for (let i=0; i<1000 && !d; i++) {
-    const res = env.step({ dir: 0, skillIdx: null });
-    total += res.reward;
-    d = res.done;
+  function createDQN(inputDim, outputDim) {
+    const model = tf.sequential();
+    model.add(tf.layers.dense({ inputShape: [inputDim], units: 128, activation: 'relu' }));
+    model.add(tf.layers.dense({ units: 128, activation: 'relu' }));
+    model.add(tf.layers.dense({ units: outputDim }));
+    model.compile({ optimizer: tf.train.adam(0.0005), loss: 'meanSquaredError' });
+    return model;
   }
-  console.log('テスト完了:', d?'終了':'途中打ち切り', '累積報酬=', total);
-})();
+
+
+  class ReplayBuffer {
+    constructor(maxSize = 100000) {
+      this.maxSize = maxSize;
+      this.buffer = [];
+      this.pos = 0;
+    }
+    add(experience) {
+      if (this.buffer.length < this.maxSize) {
+        this.buffer.push(experience);
+      } else {
+        this.buffer[this.pos] = experience;
+        this.pos = (this.pos + 1) % this.maxSize;
+      }
+    }
+    sample(batchSize) {
+      const out = [];
+      for (let i = 0; i < batchSize; i++) {
+        const idx = Math.floor(Math.random() * this.buffer.length);
+        out.push(this.buffer[idx]);
+      }
+      return out;
+    }
+    size() {
+      return this.buffer.length;
+    }
+  }
+  /**
+   * ε-greedy によって行動を選択する関数
+   * - dir: 常に -1 か +1 のどちらか
+   * - skillId: null（射撃なし）か、撃てるスキルの id
+   */
+  function selectAction(model, state, epsilon) {
+    let dir;
+    if (Math.random() < epsilon) {
+      // ランダム探索：-1 か +1 を均等に
+      dir = Math.random() < 0.5 ? -1 : +1;
+    } else {
+      // モデル推論
+      // state を Tensor にして model.predict() する想定
+      const input = tf.tensor([state]);
+      // 出力サイズは「移動方向 × スキル選択」を flatten した次元数
+      // 例: 移動2択 × (撃たない＋3スキル) = 8
+      const qValues = model.predict(input);
+      const actionIndex = qValues.argMax(-1).dataSync()[0];
+      tf.dispose(input);
+      // デコード例（移動2 × skillCount4 の場合）
+      const moveIdx = Math.floor(actionIndex / 4);
+      const skillIdx = actionIndex % 4;
+      // moveIdx 0→dir=-1, 1→dir=+1
+      dir = moveIdx === 0 ? -1 : +1;
+      // skillIdx 0→null（撃たない）、1〜3→skills[skillIdx-1]
+      return {
+        dir,
+        skillId: skillIdx === 0 ? null : p2.skills[skillIdx - 1].id
+      };
+    }
+
+    // ランダム時のスキル選択（撃つ確率 50%）
+    let skillId = null;
+    if (Math.random() < 0.5) {
+      // スキルをランダムに一つ選ぶ
+      const avail = p2.skills.filter((_, i) =>
+        p2.cost >= p2.skills[i].cost && p2.cooldowns[i] <= 0
+      );
+      if (avail.length > 0) {
+        skillId = avail[Math.floor(Math.random() * avail.length)].id;
+      }
+    }
+
+    return { dir, skillId };
+  }
+
+  // ── 学習ループの例 ──
+  async function trainLoop() {
+    const buffer = new ReplayBuffer(50000);
+
+    for (let episode = 0; episode < MAX_EPISODES; episode++) {
+      let state = env.reset();
+      let done = false;
+      let totalReward = 0;
+
+      while (!done && gameTime < 100) {
+        const { dir, skillId } = selectAction(model, state, epsilon);
+
+        // env.step は { nextState, reward, done } を返す
+        const { nextState, reward, done: d } = env.step({ dir, skillId });
+        totalReward += reward;
+
+        // ReplayBuffer に保存
+        buffer.add({ state, dir, skillId, reward, nextState, done: d });
+
+        // ミニバッチで学習
+        if (buffer.size() >= batchSize) {
+          const batch = buffer.sample(batchSize);
+          await trainOnBatch(model, batch);
+        }
+
+        state = nextState;
+        done = d;
+      }
+
+      // ε-greedy の ε を徐々に減少
+      epsilon = Math.max(epsilonMin, epsilon * epsilonDecay);
+      console.log(`Episode ${episode}: reward=${totalReward.toFixed(2)}, ε=${epsilon.toFixed(2)}`);
+    }
+  }
+
+  async function trainOnBatch(model, batch) {
+    const N = batch.length;
+
+    // バッチから状態・次状態テンソルの作成
+    const states = tf.tensor2d(batch.map(e => e.state));
+    const nextStates = tf.tensor2d(batch.map(e => e.nextState));
+
+    // モデルから Q(s) を取得
+    const qPredTensor = tf.tensor2d(
+      Array.isArray(model.predict(states))
+        ? (await model.predict(states)[0].array())
+        : (await model.predict(states).array())
+    );
+
+    // 報酬と終了フラグの配列
+    const rewards = batch.map(e => e.reward);
+    const dones = batch.map(e => e.done ? 1 : 0);
+
+    // 次状態の最大 Q 値
+    const qNext = (await model.predict(nextStates).max(-1).array());
+
+    // TD 目標値行列の組み立て
+    const rawPred = await qPredTensor.array();
+    const qTarget = rawPred.map((row, i) => {
+      const newRow = row.slice();
+      const moveIdx = batch[i].dir === -1 ? 0 : 1;
+      const skillIdx = batch[i].skillId == null
+        ? 0
+        : p2.skills.findIndex(s => s.id === batch[i].skillId) + 1;
+      const actionIndex = moveIdx * skillCount + skillIdx;
+      if (actionIndex < 0 || actionIndex >= newRow.length) {
+        console.error(`Invalid actionIndex ${actionIndex} at batch[${i}]`);
+      }
+      newRow[actionIndex] = rewards[i] + gamma * (1 - dones[i]) * qNext[i];
+      return newRow;
+    });
+
+    // 目標値テンソル化
+    const targetTensor = tf.tensor2d(qTarget, [N, actionDim]);
+
+    // 学習ステップ
+    await model.fit(states, targetTensor, { batchSize: N, epochs: 1, verbose: 0 });
+
+    // リソース解放
+    tf.dispose([states, nextStates, qPredTensor, targetTensor]);
+  }
+
+  const rewardsHistory = [];
+  trainLoop();
 
   function fire(player, idx) {
     const skill = player.skills[idx];
@@ -612,8 +795,6 @@
       return !caught && !pi.isOff();
     });
   }
-
-
   /*
   let last = performance.now();
 function loop(now) {
