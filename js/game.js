@@ -403,12 +403,15 @@
       bullets = [];
       boxes = [];
       pItems = [];
-      p1 = new Player(VIRTUAL_HEIGHT - virtualButtonHeight - marginVirtual - 200, 2, playerColors[0]);
-      p2 = new Player(virtualButtonHeight + marginVirtual, 2, playerColors[1]);
+      p1 = new Player(VIRTUAL_HEIGHT - virtualButtonHeight - marginVirtual - 200, 1, playerColors[0]);
+      p2 = new Player(virtualButtonHeight + marginVirtual, 1, playerColors[1]);
       return getState();
     }
 
     function step({ dir, skillId }) {
+      let events = [];
+
+
       p2.direction = dir;
       if (skillId !== null) {
         // id → 配列インデックスに変換
@@ -418,7 +421,7 @@
 
       const dt = 1 / 30;
       gameTime += dt;
-      updateAll(dt);
+      updateAll(dt, events);
 
       // 3) state, reward, done を計算
       const nextState = getState();
@@ -590,10 +593,8 @@
       let done = false;
       let totalReward = 0;
 
-      while (!done && gameTime < 100) {
+      while (!done && stepCount < 155 * 30) {
         const { dir, skillId } = selectAction(model, state, epsilon);
-
-        // env.step は { nextState, reward, done } を返す
         const { nextState, reward, done: d } = env.step({ dir, skillId });
         totalReward += reward;
 
@@ -609,6 +610,7 @@
         state = nextState;
         done = d;
       }
+      if(!done) totalReward -= 1;
 
       // ε-greedy の ε を徐々に減少
       epsilon = Math.max(epsilonMin, epsilon * epsilonDecay);
@@ -739,7 +741,7 @@
     player.direction = decideMove(player);
   }
 
-  function updateAll(dt) {
+  function updateAll(dt, events) {
     if (nextSpawn < SPAWN_COUNT && gameTime >= spawnTimes[nextSpawn]) {
       boxes.push(new Box());
       nextSpawn++;
@@ -761,7 +763,11 @@
             box.shakeDirection = -Math.sign(b.vy);
             box.shakeTime = box.shakeDuration;
             box.hp--;
-            if (box.hp <= 0) { dropP(box.x, box.y, b.owner); boxes.splice(i, 1); }
+            if (box.hp <= 0) {
+             dropP(box.x, box.y, b.owner);
+             boxes.splice(i, 1);
+             events.push({ type: 'p_spawn' ,player: b.owner === p2 ? 'p2' : 'p1' });
+             }
             hitBox = true;
           }
         }
@@ -789,6 +795,7 @@
         ) {
           pl.pCount++;
           pl.speed = Math.min(pl.maxSpeed, pl.baseSpeed + 0.2 * pl.pCount);
+          events.push({ type: 'p_collect', player: pl === p2 ? 'p2' : 'p1' });
           caught = true;
         }
       });
