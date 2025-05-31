@@ -405,12 +405,13 @@
       pItems = [];
       p1 = new Player(VIRTUAL_HEIGHT - virtualButtonHeight - marginVirtual - 200, 1, playerColors[0]);
       p2 = new Player(virtualButtonHeight + marginVirtual, 1, playerColors[1]);
+      breakTarget = null;
       return getState();
     }
 
     function step({ dir, skillId }) {
       let events = [];
-
+      let done = false;
 
       p2.direction = dir;
       if (skillId !== null) {
@@ -423,11 +424,26 @@
       gameTime += dt;
       updateAll(dt, events);
 
-      // 3) state, reward, done を計算
+      for (let v of bullets) {
+        checkHit(v);
+      }
+      if (breakTarget) {
+        events.push({ type: 'kill', player: breakTarget === p2 ? 'p1' : 'p2' });
+        events.push({ type: 'killed_by', player: breakTarget === p2 ? 'p2' : 'p1' });
+        done = true;
+      }
+
+      [p1, p2].forEach((pl) => {
+        pl.skills.forEach((s, i) => {
+          if (!s._unlocked && p2.pCount >= s._cumUnlockP) {
+            s._unlocked = true;
+            events.push({ type: 'skill_unlock', player: pl === p2 ? 'p1' : 'p2', skillIdx: i });
+          }
+        })
+      });
+
       const nextState = getState();
-      const check = computeReward(bullets);
-      const reward = check[0];
-      const done = check[1];
+      const reward = computeReward(events);
 
       return { nextState, reward, done };
     }
@@ -445,8 +461,8 @@
         p1.character / 100
       ]
 
-      // bullets: 50発分、なければゼロ埋め
-      for (let i = 0; i < 50; i++) {
+      // bullets: 20発分、なければゼロ埋め
+      for (let i = 0; i < 20; i++) {
         if (i < bullets.length) {
           const b = bullets[i];
           s.push(
@@ -463,7 +479,7 @@
         }
       }
 
-      for (let i = 0; i < 13; i++) {
+      for (let i = 0; i < 3;i++) {
         if (i < pItems.length) {
           const pi = pItems[i];
           s.push(pi.x / VIRTUAL_WIDTH, pi.y / VIRTUAL_HEIGHT);
@@ -472,31 +488,56 @@
         }
       }
 
+      for (let i = 0; i < 6; i++){
+        if(i<boxes.length){
+          const box = boxes[i];
+          s.push(box.x / VIRTUAL_WIDTH, box.y/VIRTUAL_HEIGHT, box.id/5);
+        }else{
+          s.push(0,0,0);
+        }
+      }
       return s;
     }
 
     return { reset, step, getState }
   }
 
-  function computeReward(b) {
-    for (let v of b) {
-      checkHit(v);
+  function computeReward(events) {
+    let reward = 0;
+
+    for(const ev of events){
+      switch (ev.type){
+      case 'p_spawn':
+        if (ev.player === 'p2') reward += +5;
+        else                   reward += -1;
+        break;
+
+      case 'p_collect':
+        if (ev.player === 'p2') reward += +10;
+        else                   reward += -15;
+        break;
+
+      case 'skill_unlock':
+        if (ev.player === 'p2') reward += +15;
+        else                   reward += -20;
+        break;
+
+      case 'kill':
+        if (ev.player === 'p2') {
+          reward += +500;
+        } 
+        break;
+
+      case 'killed_by':
+        if (ev.player === 'p2') {
+          reward += -500;
+        }
+        break;
+      }
     }
 
-    let done = false;
-    let rew = 0;
-    if (breakTarget === p1) {
-      rew += 100;
-      done = true;
-    }
-    else if (breakTarget === p2) {
-      rew -= 100;
-      done = true;
-    }
-    else {
-      rew = -0.01;
-    }
-    return [rew, done];
+    reward += -0.01;
+    return reward;
   }
 
   function checkGameOver() {
@@ -592,10 +633,12 @@
       let state = env.reset();
       let done = false;
       let totalReward = 0;
+      let stepCount = 0;
 
       while (!done && stepCount < 155 * 30) {
         const { dir, skillId } = selectAction(model, state, epsilon);
         const { nextState, reward, done: d } = env.step({ dir, skillId });
+        stepCount++;
         totalReward += reward;
 
         // ReplayBuffer に保存
@@ -610,12 +653,11 @@
         state = nextState;
         done = d;
       }
-      if(!done) totalReward -= 1;
 
       // ε-greedy の ε を徐々に減少
       epsilon = Math.max(epsilonMin, epsilon * epsilonDecay);
-      console.log(`Episode ${episode}: reward=${totalReward.toFixed(2)}, ε=${epsilon.toFixed(2)}`);
-    }
+      console.log(`Episode ${episode}: reward=${totalReward.toFixed(2)}, ε=${epsilon.toFixed(2)}, done=${done}`);
+    } 
   }
 
   async function trainOnBatch(model, batch) {
@@ -764,10 +806,10 @@
             box.shakeTime = box.shakeDuration;
             box.hp--;
             if (box.hp <= 0) {
-             dropP(box.x, box.y, b.owner);
-             boxes.splice(i, 1);
-             events.push({ type: 'p_spawn' ,player: b.owner === p2 ? 'p2' : 'p1' });
-             }
+              dropP(box.x, box.y, b.owner);
+              boxes.splice(i, 1);
+              events.push({ type: 'p_spawn', player: b.owner === p2 ? 'p2' : 'p1' });
+            }
             hitBox = true;
           }
         }
