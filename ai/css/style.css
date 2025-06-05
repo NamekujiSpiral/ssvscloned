@@ -1,0 +1,34 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #000;
+}
+
+#gameCanvas {
+  display: block;
+  touch-action: none;
+  background: rgb(0, 0, 24);
+  /* キャンバス本体の背景 */
+  position: absolute;
+  /* ウィンドウ中央に配置 */
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+#uiContainer {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  text-align: center;
+  z-index: 10;
+}
+
+#uiContainer button {
+  margin: 6px;
+  padding: 4px 8px;
+  font-size: 16px;
+}
