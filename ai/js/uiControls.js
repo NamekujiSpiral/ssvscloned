@@ -31,6 +31,7 @@ document.getElementById('trainBtn').onclick = async () => {
     trainingPromise.then(async () => {
         if (trainedModel) {
             await trainedModel.save('localstorage://my-ssv-model');
+            await agent2.save('downloads://my-model');
         }
         document.getElementById('trainBtn').disabled = false;
         document.getElementById('stopBtn').disabled = true;

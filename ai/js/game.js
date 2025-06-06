@@ -647,7 +647,7 @@
     // ── ハイパーパラメータ ──
     const MAX_EPISODES = 500;    // 総エピソード数
     const MAX_STEPS = 30 * 175;
-    const batchSize = 64;     // ミニバッチサイズ
+    const batchSize = 128;     // ミニバッチサイズ
     let epsilon = 1.0;    // ε-greedy の初期 ε
     const epsilonMin = 0.05;   // ε の最小値
     const epsilonDecay = 0.995;  // エピソード毎の ε 減衰率
@@ -694,7 +694,7 @@
           skillId2: act2.skillId
         });
 
-        if (Math.random() < 0.2) {
+        if (false && Math.random() < 0.2) {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.save(); ctx.scale(scaleX, scaleY);
           p1.draw(); p2.draw();
