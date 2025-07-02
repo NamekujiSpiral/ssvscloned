@@ -389,8 +389,11 @@
   const gamma = 0.99;   // 割引率
 
   // ── DQN モデルを作成 ──
-  const agent1 = createDQN(stateDim, actionDim);
-  const agent2 = createDQN(stateDim, actionDim);
+  let agent1, agent2, agent1_target, agent2_target;
+
+  function updateTargetModel(model, targetModel) {
+    targetModel.setWeights(model.getWeights());
+  }
 
   function createEnv() {
     function reset() {
@@ -468,13 +471,29 @@
         p1.x / VIRTUAL_WIDTH,
         p1.y / VIRTUAL_HEIGHT,
         p1.cost / 10,
-        p1.character / 100
+        p1.character / 100,
+
+        // p2のクールダウン
+        ...p2.cooldowns.map(cd => cd / COOLDOWN_DURATION),
+        // p1のクールダウン
+        ...p1.cooldowns.map(cd => cd / COOLDOWN_DURATION)
       ]
+
+      // p2(AI)に近い順にソートする関数
+      const sortByDistance = (a, b) => {
+        const distA = Math.hypot(a.x - p2.x, a.y - p2.y);
+        const distB = Math.hypot(b.x - p2.x, b.y - p2.y);
+        return distA - distB;
+      };
+
+      const sortedBullets = [...bullets].sort(sortByDistance);
+      const sortedPItems = [...pItems].sort(sortByDistance);
+      const sortedBoxes = [...boxes].sort(sortByDistance);
 
       // bullets: 20発分、なければゼロ埋め
       for (let i = 0; i < 20; i++) {
-        if (i < bullets.length) {
-          const b = bullets[i];
+        if (i < sortedBullets.length) {
+          const b = sortedBullets[i];
           s.push(
             b.x / VIRTUAL_WIDTH,
             b.y / VIRTUAL_HEIGHT,
@@ -490,8 +509,8 @@
       }
 
       for (let i = 0; i < 3; i++) {
-        if (i < pItems.length) {
-          const pi = pItems[i];
+        if (i < sortedPItems.length) {
+          const pi = sortedPItems[i];
           s.push(pi.x / VIRTUAL_WIDTH, pi.y / VIRTUAL_HEIGHT);
         } else {
           s.push(0, 0);
@@ -499,8 +518,8 @@
       }
 
       for (let i = 0; i < 6; i++) {
-        if (i < boxes.length) {
-          const box = boxes[i];
+        if (i < sortedBoxes.length) {
+          const box = sortedBoxes[i];
           s.push(box.x / VIRTUAL_WIDTH, box.y / VIRTUAL_HEIGHT, box.id / 5);
         } else {
           s.push(0, 0, 0);
@@ -593,53 +612,57 @@
   }
 
   function selectAction(model, state, epsilon, player) {
-    let dir;
-    let skillId = null;
-
     // どのプレイヤーを操作するかを判定
-    // もし player が文字列 'p1' もしくは 'p2' なら、対応するオブジェクトを取得
     const pl = (player === 'p1') ? p1 : (player === 'p2' ? p2 : player);
-    // 例：player に Player インスタンス自体を渡してもよい
 
-    // 1) ε-greedy で移動方向を決める
     if (Math.random() < epsilon) {
-      // ランダムに -1 or +1
-      dir = Math.random() < 0.5 ? -1 : +1;
+        // ランダム探索フェーズ：実行可能なアクションからランダムに選択
+        const dir = Math.random() < 0.5 ? -1 : +1;
+        let skillId = null;
+
+        const availableSkills = pl.skills
+            .map((sk, i) => ({ sk, i }))
+            .filter(({ sk, i }) => pl.cost >= sk.cost && pl.cooldowns[i] <= 0);
+
+        if (availableSkills.length > 0 && Math.random() < 0.5) { // 50%の確率でスキル使用
+            const { sk } = availableSkills[Math.floor(Math.random() * availableSkills.length)];
+            skillId = sk.id;
+        }
+        return { dir, skillId };
+
     } else {
-      // モデル推論フェーズ
-      const input = tf.tensor2d([state]);
-      const qValues = model.predict(input);
-      const actionIndex = qValues.argMax(-1).dataSync()[0];
-      tf.dispose(input);
-      tf.dispose(qValues);
+        // モデル推論フェーズ
+        const input = tf.tensor2d([state]);
+        const qValuesTensor = model.predict(input);
+        const qValues = qValuesTensor.dataSync();
 
-      const moveIdx = Math.floor(actionIndex / skillCount);
-      const skillIdx = actionIndex % skillCount;
+        // アクションマスキング：実行不可能なアクションのQ値を-Infinityにする
+        for (let i = 0; i < pl.skills.length; i++) {
+            const skill = pl.skills[i];
+            if (pl.cost < skill.cost || pl.cooldowns[i] > 0) {
+                // このスキルは使用不可
+                const actionIndex1 = (0 * skillCount) + (i + 1); // dir -1
+                const actionIndex2 = (1 * skillCount) + (i + 1); // dir +1
+                qValues[actionIndex1] = -Infinity;
+                qValues[actionIndex2] = -Infinity;
+            }
+        }
 
-      dir = (moveIdx === 0) ? -1 : +1;
-      skillId = (skillIdx === 0)
-        ? null
-        : pl.skills[skillIdx - 1].id;
+        const maskedQValues = tf.tensor1d(qValues);
+        const actionIndex = maskedQValues.argMax().dataSync()[0];
 
-      return { dir, skillId };
+        tf.dispose([input, qValuesTensor, maskedQValues]);
+
+        const moveIdx = Math.floor(actionIndex / skillCount);
+        const skillIdx = actionIndex % skillCount;
+
+        const dir = (moveIdx === 0) ? -1 : +1;
+        const skillId = (skillIdx === 0)
+            ? null
+            : pl.skills[skillIdx - 1].id;
+
+        return { dir, skillId };
     }
-
-    // 2) ランダム探索フェーズ：50% でスキルを撃つ
-    if (Math.random() < 0.01) {
-      // pl のスキル一覧から「撃てるもの」を集める
-      const avail = pl.skills
-        .map((sk, i) => ({ sk, i }))
-        .filter(({ sk, i }) =>
-          pl.cost >= sk.cost && pl.cooldowns[i] <= 0
-        );
-
-      if (avail.length > 0) {
-        const { sk } = avail[Math.floor(Math.random() * avail.length)];
-        skillId = sk.id;
-      }
-    }
-
-    return { dir, skillId };
   }
 
   // ── 学習ループの例 ──
@@ -653,14 +676,20 @@
     const epsilonDecay = 0.995;  // エピソード毎の ε 減衰率
     const trainInterval = 10;
 
+    const TARGET_UPDATE_INTERVAL = 10; // 10エピソードごとにターゲットネットワークを更新
+
     if (savedmodel) {
-      window.agent1 = savedmodel;
-      window.agent2 = savedmodel;
+      agent1 = savedmodel;
+      agent2 = savedmodel;
       epsilon = 0.5;
     } else {
-      window.agent1 = createDQN(stateDim, actionDim);
-      window.agent2 = createDQN(stateDim, actionDim);
+      agent1 = createDQN(stateDim, actionDim);
+      agent2 = createDQN(stateDim, actionDim);
     }
+    agent1_target = createDQN(stateDim, actionDim);
+    agent2_target = createDQN(stateDim, actionDim);
+    updateTargetModel(agent1, agent1_target);
+    updateTargetModel(agent2, agent2_target);
 
     // それぞれのリプレイバッファ
     const buffer1 = new ReplayBuffer(50000);
@@ -721,13 +750,19 @@
         if (stepCount % trainInterval === 0) {
           if (buffer1.size() >= batchSize) {
             const batch1 = buffer1.sample(batchSize);
-            await trainOnBatch(agent1, batch1);
+            await trainOnBatch(agent1, agent1_target, batch1);
           }
           if (buffer2.size() >= batchSize) {
             const batch2 = buffer2.sample(batchSize);
-            await trainOnBatch(agent2, batch2);
+            await trainOnBatch(agent2, agent2_target, batch2);
           }
         }
+      }
+
+      if (episode % TARGET_UPDATE_INTERVAL === 0) {
+        updateTargetModel(agent1, agent1_target);
+        updateTargetModel(agent2, agent2_target);
+        console.log(`>>> Episode ${episode}: Target networks updated.`);
       }
 
       // ε-greedy の ε を徐々に減少
@@ -736,48 +771,40 @@
     }
   }
 
-  async function trainOnBatch(model, batch) {
+  async function trainOnBatch(model, targetModel, batch) {
     const N = batch.length;
     const states = tf.tensor2d(batch.map(e => e.state));
     const nextStates = tf.tensor2d(batch.map(e => e.nextState));
 
-    // モデルから Q(s) を取得
-    const qPredTensor = tf.tensor2d(
-      Array.isArray(model.predict(states))
-        ? (await model.predict(states)[0].array())
-        : (await model.predict(states).array())
-    );
+    // メインモデルで次状態での最適アクションを選択
+    const nextActions = model.predict(nextStates).argMax(-1).dataSync();
 
-    // 報酬と終了フラグの配列
+    // ターゲットモデルでそのアクションの価値を評価
+    const qNextValues = await targetModel.predict(nextStates).array();
+
+    // TDターゲットの計算
     const rewards = batch.map(e => e.reward);
     const dones = batch.map(e => e.done ? 1 : 0);
 
-    // 次状態の最大 Q 値
-    const qNext = (await model.predict(nextStates).max(-1).array());
+    const qPredTensor = model.predict(states);
+    const qPred = await qPredTensor.array();
 
-    // TD 目標値行列の組み立て
-    const rawPred = await qPredTensor.array();
-    const qTarget = rawPred.map((row, i) => {
-      const newRow = row.slice();
-      const moveIdx = batch[i].dir === -1 ? 0 : 1;
-      const skillIdx = batch[i].skillId == null
-        ? 0
-        : p2.skills.findIndex(s => s.id === batch[i].skillId) + 1;
-      const actionIndex = moveIdx * skillCount + skillIdx;
-      if (actionIndex < 0 || actionIndex >= newRow.length) {
-        console.error(`Invalid actionIndex ${actionIndex} at batch[${i}]`);
-      }
-      newRow[actionIndex] = rewards[i] + gamma * (1 - dones[i]) * qNext[i];
-      return newRow;
+    const qTarget = qPred.map((row, i) => {
+        const newRow = row.slice();
+        const action = batch[i].action;
+        if (dones[i]) {
+            newRow[action] = rewards[i];
+        } else {
+            const targetQ = qNextValues[i][nextActions[i]];
+            newRow[action] = rewards[i] + gamma * targetQ;
+        }
+        return newRow;
     });
 
-    // 目標値テンソル化
     const targetTensor = tf.tensor2d(qTarget, [N, actionDim]);
 
-    // 学習ステップ
     await model.fit(states, targetTensor, { batchSize: N, epochs: 1, verbose: 0 });
 
-    // リソース解放
     tf.dispose([states, nextStates, qPredTensor, targetTensor]);
   }
 
@@ -1138,4 +1165,168 @@ function loop(now) {
 requestAnimationFrame(loop);
 */
   window.trainLoop = trainLoop;
+
+  // 人間 vs AI の対戦ループ
+  function startPvAILoop(aiModel) {
+    console.log("人間 vs AI モードを開始します");
+    env.reset(); // 環境をリセット
+    autoOpponent = true; // p2をAI操作モードに
+    agent2 = aiModel; // 学習済みモデルをAIエージェントに設定
+
+    let last = performance.now();
+
+    function gameLoop(now) {
+      const dt = (now - last) / 1000;
+      last = now;
+
+      if (gameOver) {
+        alert((breakTarget === p1 ? 'あなたの勝ちです！' : 'AIの勝ちです！'));
+        // ゲームオーバー後の処理（例：UIをリセットなど）
+        return; // ループを停止
+      }
+
+      // --- AIの行動決定 ---
+      const state = env.getState();
+      const aiAction = selectAction(agent2, state, 0, p2); // ε=0で常に最適な行動を選択
+      p2.direction = aiAction.dir;
+      if (aiAction.skillId !== null) {
+        const idx = p2.skills.findIndex(s => s.id === aiAction.skillId);
+        if (idx >= 0) {
+          fire(p2, idx);
+        }
+      }
+
+      // --- ゲーム全体の更新 ---
+      updateAll(dt, []); // イベント配列は空で渡す
+
+      // --- 描画 ---
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      ctx.scale(scaleX, scaleY);
+
+      p1.draw();
+      p2.draw();
+      boxes.forEach(box => box.draw());
+      bullets.forEach(b => b.draw());
+      pItems.forEach(pi => pi.draw());
+
+      // UI描画など（元のloop関数から必要な部分を移植）
+      drawUI();
+
+      if (breakTarget) {
+        breakProgress += dt;
+        const t = Math.min(1, breakProgress / BREAK_DURATION);
+        breakTarget.draw(1 - t, 1 - t);
+        if (t >= 1) {
+          gameOver = true; // 先にフラグを立てる
+        }
+      }
+
+      ctx.restore();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    requestAnimationFrame(gameLoop);
+  }
+  window.startPvAILoop = startPvAILoop;
+
+  // UI描画関数（元のloopから分離・整理）
+  function drawUI() {
+      const bhPx = virtualButtonHeight * scaleY, bwPx = canvas.width / 3;
+      ctx.textAlign = 'center';
+      for (let i = 0; i < 3; i++) {
+        const x0 = i * bwPx, y0p = 0, y0m = canvas.height - bhPx;
+        const skill2 = p2.skills[i], skill1 = p1.skills[i];
+        const unlocked2 = p2.pCount >= skill2._cumUnlockP;
+        const ready2 = unlocked2 && p2.cost >= skill2.cost && p2.cooldowns[i] <= 0;
+        const unlocked1 = p1.pCount >= skill1._cumUnlockP;
+        const ready1 = unlocked1 && p1.cost >= skill1.cost && p1.cooldowns[i] <= 0;
+    
+        // ボタン背景
+        ctx.fillStyle = !unlocked2 ? 'rgba(130,130,130,1)' : (!ready2 ? 'rgba(200,200,200,1)' : p2.color);
+        ctx.fillRect(x0, y0p, bwPx - 2, bhPx - 2);
+        ctx.fillStyle = !unlocked1 ? 'rgba(130,130,130,1)' : (!ready1 ? 'rgba(200,200,200,1)' : p1.color);
+        ctx.fillRect(x0, y0m, bwPx - 2, bhPx - 2);
+    
+        // 押下フィードバック
+        if (isButtonPressed(p2, i)) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(x0, y0p, bwPx - 2, bhPx - 2); }
+        if (isButtonPressed(p1, i)) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(x0, y0m, bwPx - 2, bhPx - 2); }
+    
+        // 技名
+        ctx.fillStyle = '#fff'; ctx.font = `${Math.floor(bhPx * 0.22)}px Gonta`;
+        ctx.fillText(skill2.name, x0 + bwPx / 2, bhPx * 0.25);
+        ctx.fillText(skill1.name, x0 + bwPx / 2, y0m + bhPx * 0.25);
+    
+        // コスト or 必要Pの星形表示
+        const starSize = 70 * 2 * 0.8 * scaleY; // =70
+        const gap = starSize * 1.2;
+        // p2
+        if (unlocked2) {
+          ctx.font = `${Math.floor(bhPx * 0.3)}px Gonta`;
+          ctx.fillText(skill2.cost, x0 + bwPx / 2, bhPx * 0.7);
+        } else {
+          const maxP = skill2.unlockP;
+          const haveP = p2.pCount >= skill2._cumUnlockP ? maxP : (p2.pCount - (p2.skills[i-1]?._cumUnlockP || 0));
+          const startX = x0 + bwPx / 2 - (gap * (maxP - 1)) / 2;
+          for (let s = 0; s < maxP; s++) {
+            const cx = startX + s * gap;
+            const cy = bhPx * 0.7;
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.beginPath();
+            for (let k = 0; k < 5; k++) {
+              const ang = (Math.PI * 2 / 5) * k - Math.PI / 2;
+              ctx.lineTo(Math.cos(ang) * (starSize / 2), Math.sin(ang) * (starSize / 2));
+              const mid = ang + Math.PI / 5;
+              ctx.lineTo(Math.cos(mid) * (starSize / 4), Math.sin(mid) * (starSize / 4));
+            }
+            ctx.closePath();
+            ctx.fillStyle = s < haveP ? '#ff0' : 'rgba(100,100,100,1)';
+            ctx.fill();
+            ctx.restore();
+          }
+        }
+        // p1
+        if (unlocked1) {
+          ctx.font = `${Math.floor(bhPx * 0.3)}px Gonta`;
+          ctx.fillText(skill1.cost, x0 + bwPx / 2, y0m + bhPx * 0.7);
+        } else {
+          const maxP = skill1.unlockP;
+          const haveP = p1.pCount >= skill1._cumUnlockP ? maxP : (p1.pCount - (p1.skills[i-1]?._cumUnlockP || 0));
+          const startX = x0 + bwPx / 2 - (gap * (maxP - 1)) / 2;
+          for (let s = 0; s < maxP; s++) {
+            const cx = startX + s * gap;
+            const cy = y0m + bhPx * 0.7;
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.beginPath();
+            for (let k = 0; k < 5; k++) {
+              const ang = (Math.PI * 2 / 5) * k - Math.PI / 2;
+              ctx.lineTo(Math.cos(ang) * (starSize / 2), Math.sin(ang) * (starSize / 2));
+              const mid = ang + Math.PI / 5;
+              ctx.lineTo(Math.cos(mid) * (starSize / 4), Math.sin(mid) * (starSize / 4));
+            }
+            ctx.closePath();
+            ctx.fillStyle = s < haveP ? '#ff0' : 'rgba(100,100,100,1)';
+            ctx.fill();
+            ctx.restore();
+          }
+        }
+      }
+      const barH = 130 * scaleY;
+      ctx.fillStyle = p2.color; ctx.fillRect(0, bhPx + 2, canvas.width * (p2.cost / p2.maxCost), barH);
+      if (p2.cost >= p2.maxCost) { ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(0, bhPx + 2, canvas.width, barH); }
+      ctx.fillStyle = p1.color; ctx.fillRect(0, canvas.height - bhPx - 2 - barH, canvas.width * (p1.cost / p1.maxCost), barH);
+      if (p1.cost >= p1.maxCost) { ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(0, canvas.height - bhPx - 2 - barH, canvas.width, barH); }
+      ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 5;
+      for (let j = 1; j < 10; j++) {
+        const xL = j * (canvas.width / 10);
+        ctx.beginPath(); ctx.moveTo(xL, bhPx + 2); ctx.lineTo(xL, bhPx + 2 + barH); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(xL, canvas.height - bhPx - 2 - barH); ctx.lineTo(xL, canvas.height - bhPx - 2); ctx.stroke();
+      }
+      ctx.fillStyle = '#fff'; ctx.font = `${barH * 0.8}px Gonta`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(`${Math.floor(p2.cost)}/${p2.maxCost}`, canvas.width / 2, bhPx + 2 + barH / 2);
+      ctx.fillText(`${Math.floor(p1.cost)}/${p1.maxCost}`, canvas.width / 2, canvas.height - bhPx - 2 - barH / 2);
+  }
 })();
