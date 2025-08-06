@@ -155,6 +155,27 @@ export class UIRenderer {
       this.ctx.fillText(`AI Opponent:`, menuX + 20, aiY);
       this.ctx.fillStyle = autoOpponent ? '#0f0' : '#f00';
       this.ctx.fillText(autoOpponent ? 'ON' : 'OFF', menuX + 300, aiY);
+
+      // わくせい選択
+      const planetBaseY = 150 + (characters.length + 2) * 100; // スペースを追加
+      const planetY1 = planetBaseY;
+      const planetY2 = planetBaseY + 100;
+      const planetY3 = planetBaseY + 200;
+      const planetY4 = planetBaseY + 300;
+
+      this.ctx.fillStyle = '#fff';
+      this.ctx.fillText('わくせい', menuX + 20, planetBaseY - 50);
+      this.ctx.fillStyle = window.selectedPlanet === 0 ? '#0f0' : '#fff';
+      this.ctx.fillText('デフォルト', menuX + 40, planetY1);
+      this.ctx.fillStyle = window.selectedPlanet === 1 ? '#0f0' : '#fff';
+      this.ctx.fillText('スピードわくせいB', menuX + 40, planetY2);
+      this.ctx.fillStyle = window.selectedPlanet === 2 ? '#0f0' : '#fff';
+      this.ctx.fillText('ミラーわくせい', menuX + 40, planetY3);
+      this.ctx.fillStyle = window.selectedPlanet === 3 ? '#0f0' : '#fff';
+      this.ctx.fillText('ミラーわくせいB', menuX + 40, planetY4);
+      this.ctx.fillStyle = window.selectedPlanet === 4 ? '#0f0' : '#fff';
+      this.ctx.fillText('トランポリンわくせい', menuX + 40, planetBaseY + 400);
+
       // 閉じるアイコン（白固定）
       this.ctx.fillStyle = '#fff';
       this.ctx.fillText('✕', menuX + MENU_WIDTH - 40, 40);

@@ -1,4 +1,4 @@
-import { VIRTUAL_WIDTH } from '../constants.js';
+import { VIRTUAL_WIDTH, VIRTUAL_HEIGHT } from '../constants.js';
 
 export class Player {
   constructor(y, charIndex, color, characters) {
@@ -7,6 +7,7 @@ export class Player {
     this.height = 180;
     this.x = (VIRTUAL_WIDTH - this.width) / 2;
     this.y = y;
+    this.initialY = y; // 初期Y座標を保存
     this.skills = characters[charIndex].skills;
     this.color = color;
     this.alive = true;
@@ -19,9 +20,10 @@ export class Player {
     this.maxCost = 10;
     this.costRate = 0.5;
     this.cooldowns = this.skills.map(_ => 0);
+    this.bounceOffsetY = 0;
   }
 
-  update(dt, gameTime, players) {
+  update(dt, gameTime, players, isMirrorPlanet = false) {
     if (!this.alive) return;
 
     const t = gameTime;
@@ -36,7 +38,25 @@ export class Player {
       p2.y = midY + allowedGap / 2;
     }
 
-    this.x = Math.max(0, Math.min(VIRTUAL_WIDTH - this.size, this.x + this.direction * this.speed));
+    this.x += this.direction * this.speed;
+
+    if (isMirrorPlanet) {
+      if (this.x < -this.width) this.x = VIRTUAL_WIDTH;
+      if (this.x > VIRTUAL_WIDTH) this.x = -this.width;
+    } else {
+      this.x = Math.max(0, Math.min(VIRTUAL_WIDTH - this.size, this.x));
+    }
+
+    if (window.selectedPlanet === 4) {
+      const bounceHeight = 300; // はねる高さ
+      const bounceSpeed = 1.5; // はねる速さ
+      this.bounceOffsetY = Math.abs(Math.sin(gameTime * bounceSpeed)) * bounceHeight;
+      this.y = this.initialY + (this.y < VIRTUAL_HEIGHT / 2 ? this.bounceOffsetY : -this.bounceOffsetY);
+    } else {
+      this.bounceOffsetY = 0;
+      this.y = this.initialY;
+    }
+
     this.cost = Math.min(this.maxCost, this.cost + dt * this.costRate);
     this.cooldowns = this.cooldowns.map(cd => Math.max(0, cd - dt));
   }
@@ -44,6 +64,7 @@ export class Player {
   draw(ctx) {
     if (!this.alive) return;
     ctx.fillStyle = this.color;
-    ctx.fillRect(this.x, this.y, this.width, this.height);
+    const y = this.y;
+    ctx.fillRect(this.x, y, this.width, this.height);
   }
 }

@@ -4,6 +4,7 @@ import { Box } from './classes/Box.js';
 import { PItem } from './classes/PItem.js';
 import { UIRenderer } from './modules/UIRenderer.js';
 import { CollisionDetector } from './modules/CollisionDetector.js';
+import { Turret } from './classes/Turret.js';
 import { characters } from './data/characters.js';
 import {
   VIRTUAL_WIDTH,
@@ -37,11 +38,13 @@ import {
   window.selectedChar1 = 2; // P1の選択キャラをグローバルに
   window.selectedChar2 = 3; // P2の選択キャラをグローバルに
   let autoOpponent = false;
+  window.selectedPlanet = 0; // 選択中のわくせい
 
   let p1 = new Player(VIRTUAL_HEIGHT - VIRTUAL_BUTTON_HEIGHT - MARGIN_VIRTUAL - 200, window.selectedChar1, PLAYER_COLORS[0], characters);
   let p2 = new Player(VIRTUAL_BUTTON_HEIGHT + MARGIN_VIRTUAL, window.selectedChar2, PLAYER_COLORS[1], characters);
   const players = [p1, p2];
   let bullets = [];
+let turrets = [];
   let pItems = [];
   let boxes = [];
 
@@ -62,7 +65,7 @@ import {
     pItems.push(new PItem(x, y, owner));
   }
 
-  function fire(player, idx) {
+  function fire(player, idx, p1, p2) {
     const skill = player.skills[idx];
     if (player.pCount < skill._cumUnlockP) return;
     if (player.cost < skill.cost || player.cooldowns[idx] > 0 || gameOver) return;
@@ -71,25 +74,54 @@ import {
     player.cooldowns[idx] = COOLDOWN_DURATION;
 
     const bx = player.x + player.width / 2;
-    let by = player.y + (player === p1 ? -player.size / 2 : player.size + player.size / 2);
+    let by = player.y + (player === p1 ? -player.size / 2 : player.size / 2);
+
 
     if (skill.name === 'スーパーヘヴィ') by += (player === p1 ? 50 : -50);
 
     if (skill.behavior === 'twin') {
       const ang = 15 * Math.PI / 180;
       const mag = skill.speed;
-      const vy = player === p1 ? -mag * Math.cos(ang) : mag * Math.cos(ang);
+      const vy = (player === p1 ? -mag * Math.cos(ang) : mag * Math.cos(ang));
       bullets.push(new Bullet(bx, by, mag * Math.sin(ang), vy, player, skill));
       bullets.push(new Bullet(bx, by, -mag * Math.sin(ang), vy, player, skill));
       return;
     }
     if (skill.behavior === 'trickDouble') {
-      const vy = player === p1 ? -skill.speed : skill.speed;
+      const vy = (player === p1 ? -skill.speed : skill.speed);
       bullets.push(new Bullet(bx, by, 0, vy, player, { ...skill, behavior: 'curveLeft' }));
       bullets.push(new Bullet(bx, by, 0, vy, player, { ...skill, behavior: 'curveRight' }));
       return;
     }
-    bullets.push(new Bullet(bx, by, 0, player === p1 ? -skill.speed : skill.speed, player, skill));
+    if (skill.behavior === 'placeTurret') {
+      const turretSize = 50;
+      turrets.push(new Turret(player.x + player.width / 2 - turretSize / 2, player.y, turretSize, player));
+      return;
+    }
+    if (skill.behavior === 'shortAim' || skill.behavior === 'turnAim') {
+      const targetX = VIRTUAL_WIDTH / 2;
+      const targetY = VIRTUAL_HEIGHT / 2;
+      const dx = targetX - bx;
+      const dy = targetY - by;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const vx = (dx / distance) * skill.speed;
+      const vy = (dy / distance) * skill.speed;
+      bullets.push(new Bullet(bx, by, vx, vy, player, skill));
+      return;
+    }
+    if (skill.behavior === 'longAim') {
+      const targetPlayer = player === p1 ? p2 : p1;
+      const targetX = VIRTUAL_WIDTH / 2;
+      const targetY = targetPlayer.y;
+      const dx = targetX - bx;
+      const dy = targetY - by;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const vx = (dx / distance) * skill.speed;
+      const vy = (dy / distance) * skill.speed;
+      bullets.push(new Bullet(bx, by, vx, vy, player, skill));
+      return;
+    }
+    bullets.push(new Bullet(bx, by, 0, (player === p1 ? -skill.speed : skill.speed), player, skill));
   }
 
   function onHit(target) {
@@ -139,7 +171,7 @@ import {
       closeMenu();
       return;
     }
-    // メニュー内部タップ：キャラ / AI 選択
+    // メニュー内部タップ：キャラ / AI / わくせい 選択
     if (menuOpen && x >= menuX) {
       const localX = x - menuX;
       const localY = y;
@@ -161,6 +193,30 @@ import {
       if (localY > aiY - 30 && localY < aiY + 30) {
         autoOpponent = !autoOpponent;
       }
+      // わくせい選択
+      const planetBaseY = 150 + (characters.length + 2) * 100;
+      const planetY1 = planetBaseY;
+      const planetY2 = planetBaseY + 100;
+      const planetY3 = planetBaseY + 200;
+      const planetY4 = planetBaseY + 300;
+      const planetY5 = planetBaseY + 400;
+
+      if (localY > planetY1 - 30 && localY < planetY1 + 30) {
+        window.selectedPlanet = 0;
+      }
+      if (localY > planetY2 - 30 && localY < planetY2 + 30) {
+        window.selectedPlanet = 1;
+      }
+      if (localY > planetY3 - 30 && localY < planetY3 + 30) {
+        window.selectedPlanet = 2;
+      }
+      if (localY > planetY4 - 30 && localY < planetY4 + 30) {
+        window.selectedPlanet = 3;
+      }
+      if (localY > planetY5 - 30 && localY < planetY5 + 30) {
+        window.selectedPlanet = 4;
+      }
+
       // 閉じるアイコン
       if (localY < 50 && localX > MENU_WIDTH - 50) {
         closeMenu();
@@ -210,7 +266,7 @@ import {
         (player === p2 && y < VIRTUAL_BUTTON_HEIGHT && idxUp === idx) ||
         (player === p1 && y > VIRTUAL_HEIGHT - VIRTUAL_BUTTON_HEIGHT && idxUp === idx)
       ) {
-        fire(player, idx);
+        fire(player, idx, p1, p2);
       }
     }
     pressedButtons.delete(e.pointerId);
@@ -227,6 +283,19 @@ import {
   canvas.addEventListener('pointercancel', handlePointerCancel);
 
   function updateGameLogic(dt) {
+    const isMirrorPlanet = window.selectedPlanet === 2;
+    const isMirrorPlanetB = window.selectedPlanet === 3;
+    const isTrampolinePlanet = window.selectedPlanet === 4;
+
+    // わくせい効果
+    if (window.selectedPlanet === 1) {
+      p1.costRate = 0.75;
+      p2.costRate = 0.75;
+    } else {
+      p1.costRate = 0.5;
+      p2.costRate = 0.5;
+    }
+
     // 1. 箱の出現
     if (nextSpawn < SPAWN_COUNT && gameTime >= SPAWN_TIMES[nextSpawn]) {
       boxes.push(new Box(nextSpawn));
@@ -238,9 +307,10 @@ import {
     }
 
     // 2. 更新
-    p1.update(dt, gameTime, players);
-    p2.update(dt, gameTime, players);
-    bullets.forEach(b => b.update(dt));
+    p1.update(dt, gameTime, players, isMirrorPlanet);
+    p2.update(dt, gameTime, players, isMirrorPlanet);
+    bullets.forEach(b => b.update(dt, isMirrorPlanet, isMirrorPlanetB));
+    turrets.forEach(t => t.update(bullets));
     pItems.forEach(pi => pi.update(dt));
     boxes.forEach(box => box.update(dt));
 
@@ -264,6 +334,16 @@ import {
       });
 
       if (bulletShouldBeRemoved) return false; // 弾が削除されるべきならここで削除
+
+      // タレットへの衝突判定
+      turrets = turrets.filter(turret => {
+        if (b.owner !== turret.player && CollisionDetector.checkBulletTurretCollision(b, turret)) {
+          return false; // タレットを破壊
+        }
+        return true;
+      });
+
+      if (bulletShouldBeRemoved) return false;
 
       // プレイヤーへの衝突判定
       const targetPlayer = b.owner === p1 ? p2 : p1;
@@ -297,6 +377,7 @@ import {
 
     // 描画順序: 箱 → キャラクター → 弾 → Pアイテム
     boxes.forEach(box => box.draw(ctx));
+    turrets.forEach(t => t.draw(ctx));
     p1.draw(ctx);
     p2.draw(ctx);
     bullets.forEach(b => b.draw(ctx));

@@ -26,6 +26,20 @@ export class CollisionDetector {
     return false;
   }
 
+  static checkBulletTurretCollision(bullet, turret) {
+    const halfB = bullet.size / 2;
+    const halfTurret = turret.size / 2;
+    if (
+      bullet.x + halfB > turret.x - halfTurret &&
+      bullet.x - halfB < turret.x + halfTurret &&
+      bullet.y + halfB > turret.y - halfTurret &&
+      bullet.y - halfB < turret.y + halfTurret
+    ) {
+      return true;
+    }
+    return false;
+  }
+
   static checkPItemPlayerCollision(pItem, player) {
     const half = pItem.size / 2;
     if (

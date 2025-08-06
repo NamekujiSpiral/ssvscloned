@@ -11,9 +11,17 @@ export class Bullet {
     this.size = skill.size;
     this.behavior = skill.behavior;
     this.passed = false;
+    this.planetEffectApplied = false; // わくせい効果が適用されたか
   }
 
-  update(dt) {
+  update(dt, isMirrorPlanet = false, isMirrorPlanetB = false) {
+    if (this.behavior === 'turnAim' && !this.passed) {
+      if ((this.vy < 0 && this.y < VIRTUAL_HEIGHT / 2) || (this.vy > 0 && this.y > VIRTUAL_HEIGHT / 2)) {
+        this.passed = true;
+        this.vx *= -1;
+      }
+    }
+
     if ((this.behavior === 'curveLeft' || this.behavior === 'curveRight') && !this.passed) {
       if ((this.vy < 0 && this.y < VIRTUAL_HEIGHT / 2) || (this.vy > 0 && this.y > VIRTUAL_HEIGHT / 2)) {
         this.passed = true;
@@ -37,6 +45,19 @@ export class Bullet {
     }
     this.x += this.vx * dt * 60;
     this.y += this.vy * dt * 60;
+
+    if (isMirrorPlanet) {
+      if (this.x < -this.size) this.x = VIRTUAL_WIDTH;
+      if (this.x > VIRTUAL_WIDTH) this.x = -this.size;
+    }
+
+    if (isMirrorPlanetB && !this.planetEffectApplied) {
+      if ((this.vy < 0 && this.y < VIRTUAL_HEIGHT / 2) || (this.vy > 0 && this.y > VIRTUAL_HEIGHT / 2)) {
+        this.vx *= -1;
+        this.x = VIRTUAL_WIDTH - this.x;
+        this.planetEffectApplied = true;
+      }
+    }
   }
 
   draw(ctx) {
