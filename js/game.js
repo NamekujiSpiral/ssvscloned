@@ -94,8 +94,9 @@ let turrets = [];
       return;
     }
     if (skill.behavior === 'placeTurret') {
-      const turretSize = 50;
-      turrets.push(new Turret(player.x + player.width / 2 - turretSize / 2, player.y, turretSize, player));
+      // タレットの幅はプレイヤーの幅の40%なので、その半分のオフセットで中央に配置
+      const turretWidth = player.width * 0.4;
+      turrets.push(new Turret(player.x + player.width / 2 - turretWidth / 2, player));
       return;
     }
     if (skill.behavior === 'shortAim' || skill.behavior === 'turnAim') {

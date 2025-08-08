@@ -37,7 +37,7 @@ export const characters = [
   {
     name: 'タレット(err)', skills: [
       { name: 'タレット設置', cost: 2, size: 100, speed: 0, behavior: 'placeTurret', unlockP: 0 },
-            { name: 'test2', cost: 3, size: 600, speed: 30, behavior: 'twin', unlockP: 0 },
+      { name: 'test2', cost: 3, size: 600, speed: 30, behavior: 'twin', unlockP: 0 },
       { name: 'testicle', cost: 1, size: 10, speed: 4, behavior: 'mirror', unlockP: 2 }
     ]
   },
