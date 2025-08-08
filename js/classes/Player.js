@@ -23,42 +23,61 @@ export class Player {
     this.bounceOffsetY = 0;
   }
 
-  update(dt, gameTime, players, isMirrorPlanet = false) {
-    if (!this.alive) return;
+    static updatePlayers(dt, gameTime, players, isMirrorPlanet = false, isTrampolinePlanet = false, isTrampolinePlanetB = false) {
+    const [p1, p2] = players;
 
-    const t = gameTime;
-    if (t > 60) {
-      const p1 = players[0], p2 = players[1];
-      const tt = Math.min(Math.max((t - 60) / (145 - 60), 0), 1);
+    // Y座標の計算
+    let p1_baseY = p1.initialY;
+    let p2_baseY = p2.initialY;
+
+    if (gameTime > 60) {
+      const t = Math.min(Math.max((gameTime - 60) / (145 - 60), 0), 1);
       const initialGap = -2100;
       const targetGap = -450;
-      const allowedGap = initialGap + (targetGap - initialGap) * tt;
-      const midY = (p1.y + p2.y) / 2;
-      p1.y = midY - allowedGap / 2;
-      p2.y = midY + allowedGap / 2;
+      const allowedGap = initialGap + (targetGap - initialGap) * t;
+      const midY = (p1.initialY + p2.initialY) / 2;
+      p1_baseY = midY - allowedGap / 2;
+      p2_baseY = midY + allowedGap / 2;
     }
 
-    this.x += this.direction * this.speed;
+    p1.y = p1_baseY;
+    p2.y = p2_baseY;
 
-    if (isMirrorPlanet) {
-      if (this.x < -this.width) this.x = VIRTUAL_WIDTH;
-      if (this.x > VIRTUAL_WIDTH) this.x = -this.width;
+    const bounceHeight = 300;
+    const bounceSpeed = 1.5;
+    const bounceOffsetY = Math.abs(Math.sin(gameTime * bounceSpeed)) * bounceHeight;
+
+    if (isTrampolinePlanet) {
+      p1.y -= bounceOffsetY;
+      p2.y += bounceOffsetY;
+      p1.bounceOffsetY = -bounceOffsetY;
+      p2.bounceOffsetY = bounceOffsetY;
+    } else if (isTrampolinePlanetB) {
+        p1.y += bounceOffsetY;
+        p2.y -= bounceOffsetY;
+        p1.bounceOffsetY = bounceOffsetY;
+        p2.bounceOffsetY = -bounceOffsetY;
     } else {
-      this.x = Math.max(0, Math.min(VIRTUAL_WIDTH - this.size, this.x));
+      p1.bounceOffsetY = 0;
+      p2.bounceOffsetY = 0;
     }
 
-    if (window.selectedPlanet === 4) {
-      const bounceHeight = 300; // はねる高さ
-      const bounceSpeed = 1.5; // はねる速さ
-      this.bounceOffsetY = Math.abs(Math.sin(gameTime * bounceSpeed)) * bounceHeight;
-      this.y = this.initialY + (this.y < VIRTUAL_HEIGHT / 2 ? this.bounceOffsetY : -this.bounceOffsetY);
-    } else {
-      this.bounceOffsetY = 0;
-      this.y = this.initialY;
-    }
+    // 各プレイヤーの残りの更新ロジック
+    players.forEach(player => {
+      if (!player.alive) return;
 
-    this.cost = Math.min(this.maxCost, this.cost + dt * this.costRate);
-    this.cooldowns = this.cooldowns.map(cd => Math.max(0, cd - dt));
+      player.x += player.direction * player.speed;
+
+      if (isMirrorPlanet) {
+        if (player.x < -player.width) player.x = VIRTUAL_WIDTH;
+        if (player.x > VIRTUAL_WIDTH) player.x = -player.width;
+      } else {
+        player.x = Math.max(0, Math.min(VIRTUAL_WIDTH - player.size, player.x));
+      }
+
+      player.cost = Math.min(player.maxCost, player.cost + dt * player.costRate);
+      player.cooldowns = player.cooldowns.map(cd => Math.max(0, cd - dt));
+    });
   }
 
   draw(ctx) {

@@ -200,6 +200,7 @@ let turrets = [];
       const planetY3 = planetBaseY + 200;
       const planetY4 = planetBaseY + 300;
       const planetY5 = planetBaseY + 400;
+      const planetY6 = planetBaseY + 500;
 
       if (localY > planetY1 - 30 && localY < planetY1 + 30) {
         window.selectedPlanet = 0;
@@ -215,6 +216,9 @@ let turrets = [];
       }
       if (localY > planetY5 - 30 && localY < planetY5 + 30) {
         window.selectedPlanet = 4;
+      }
+      if (localY > planetY6 - 30 && localY < planetY6 + 30) {
+        window.selectedPlanet = 5;
       }
 
       // 閉じるアイコン
@@ -286,6 +290,7 @@ let turrets = [];
     const isMirrorPlanet = window.selectedPlanet === 2;
     const isMirrorPlanetB = window.selectedPlanet === 3;
     const isTrampolinePlanet = window.selectedPlanet === 4;
+    const isTrampolinePlanetB = window.selectedPlanet === 5;
 
     // わくせい効果
     if (window.selectedPlanet === 1) {
@@ -307,8 +312,7 @@ let turrets = [];
     }
 
     // 2. 更新
-    p1.update(dt, gameTime, players, isMirrorPlanet);
-    p2.update(dt, gameTime, players, isMirrorPlanet);
+    Player.updatePlayers(dt, gameTime, players, isMirrorPlanet, isTrampolinePlanet, isTrampolinePlanetB);
     bullets.forEach(b => b.update(dt, isMirrorPlanet, isMirrorPlanetB));
     turrets.forEach(t => t.update(bullets));
     pItems.forEach(pi => pi.update(dt));

@@ -175,6 +175,8 @@ export class UIRenderer {
       this.ctx.fillText('ミラーわくせいB', menuX + 40, planetY4);
       this.ctx.fillStyle = window.selectedPlanet === 4 ? '#0f0' : '#fff';
       this.ctx.fillText('トランポリンわくせい', menuX + 40, planetBaseY + 400);
+      this.ctx.fillStyle = window.selectedPlanet === 5 ? '#0f0' : '#fff';
+      this.ctx.fillText('トランポリンわくせいB', menuX + 40, planetBaseY + 500);
 
       // 閉じるアイコン（白固定）
       this.ctx.fillStyle = '#fff';
