@@ -1,6 +1,6 @@
 export const VIRTUAL_WIDTH = 1800;
 export const VIRTUAL_HEIGHT = 3200;
-export const VIRTUAL_BUTTON_HEIGHT = 320;
+export const VIRTUAL_BUTTON_HEIGHT = 310;
 export const MARGIN_VIRTUAL = 130;
 export const COOLDOWN_DURATION = 0.4;
 export const MENU_WIDTH = 800;

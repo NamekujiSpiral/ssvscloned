@@ -1,16 +1,16 @@
 export const characters = [
   {
     name: 'クジラ', skills: [
-      { name: 'ヘヴィショット', cost: 2, size: 220, speed: 7.5, behavior: 'straight', unlockP: 0 },
-      { name: 'スーパーヘヴィ', cost: 5, size: 440, speed: 8, behavior: 'straight', unlockP: 3 },
+      { name: 'ヘヴィショット', cost: 2, size: 180, speed: 6.5, behavior: 'straight', unlockP: 0 },
+      { name: 'スーパーヘヴィ', cost: 5, size: 380, speed: 7, behavior: 'straight', unlockP: 3 },
       { name: 'だんまく', cost: 9, size: 150, speed: 4, behavior: 'danmaku', unlockP: 2 }
     ]
   },
   {
     name: 'ウサギ', skills: [
-      { name: 'ショット', cost: 2, size: 75, speed: 12, behavior: 'straight', unlockP: 0 },
-      { name: 'だましレフト', cost: 3, size: 75, speed: 12, behavior: 'curveLeft', unlockP: 2 },
-      { name: 'スピードショット', cost: 7, size: 75, speed: 50, behavior: 'straight', unlockP: 2 }
+      { name: 'ショット', cost: 2, size: 60, speed: 12, behavior: 'straight', unlockP: 0 },
+      { name: 'だましレフト', cost: 3, size: 60, speed: 12, behavior: 'curveLeft', unlockP: 2 },
+      { name: 'スピードショット', cost: 7, size: 60, speed: 50, behavior: 'straight', unlockP: 2 }
     ]
   },
   {
@@ -22,9 +22,9 @@ export const characters = [
   },
   {
     name: 'ピエロ', skills: [
-      { name: 'ピエロショット', cost: 2, size: 75, speed: 12, behavior: 'straight', unlockP: 0 },
-      { name: 'ミラーショット', cost: 4, size: 75, speed: 12, behavior: 'mirror', unlockP: 2 },
-      { name: 'だましダブル', cost: 5, size: 75, speed: 12, behavior: 'trickDouble', unlockP: 2 }
+      { name: 'ピエロショット', cost: 2, size: 60, speed: 12, behavior: 'straight', unlockP: 0 },
+      { name: 'ミラーショット', cost: 4, size: 60, speed: 12, behavior: 'mirror', unlockP: 2 },
+      { name: 'だましダブル', cost: 5, size: 60, speed: 12, behavior: 'trickDouble', unlockP: 2 }
     ]
   },
   {
@@ -42,10 +42,17 @@ export const characters = [
     ]
   },
   {
-    name: 'イテせいじん', skills: [
-      { name: 'ショートエイム', cost: 2, size: 75, speed: 13, behavior: 'shortAim', unlockP: 0 },
-      { name: 'ロングエイム', cost: 2, size: 75, speed: 13, behavior: 'longAim', unlockP: 2 },
-      { name: 'ターンエイム', cost: 4, size: 75, speed: 13, behavior: 'turnAim', unlockP: 2 }
+    name: 'イテ', skills: [
+      { name: 'ショートエイム', cost: 2, size: 60, speed: 13, behavior: 'shortAim', unlockP: 0 },
+      { name: 'ロングエイム', cost: 2, size: 60, speed: 13, behavior: 'longAim', unlockP: 2 },
+      { name: 'ターンエイム', cost: 4, size: 60, speed: 13, behavior: 'turnAim', unlockP: 2 }
+    ]
+  },
+  {
+    name: 'ヒトデ', skills: [
+      { name: 'しょぼショット', cost: 1, size: 60, speed: 4.5, behavior: 'straight', unlockP: 0 },
+      { name: 'トリプルスター', cost: 5, size: 80, speed: 7.5, behavior: 'tripleStar', unlockP: 2 },
+      { name: 'プチだんまく', cost: 7, size: 30, speed: 4, behavior: 'pdanmaku', unlockP: 2 }
     ]
   }
 ];

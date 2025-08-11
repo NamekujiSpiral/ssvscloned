@@ -5,7 +5,7 @@ export class Player {
     this.size = 180;
     this.width = 140;
     this.height = 180;
-    this.x = (VIRTUAL_WIDTH - this.width) / 2;
+    this.x = VIRTUAL_WIDTH / 2;
     this.y = y;
     this.initialY = y; // 初期Y座標を保存
     this.skills = characters[charIndex].skills;
@@ -32,7 +32,7 @@ export class Player {
 
     if (gameTime > 60) {
       const t = Math.min(Math.max((gameTime - 60) / (145 - 60), 0), 1);
-      const initialGap = -2100;
+      const initialGap = p2.initialY - p1.initialY;
       const targetGap = -450;
       const allowedGap = initialGap + (targetGap - initialGap) * t;
       const midY = (p1.initialY + p2.initialY) / 2;
@@ -72,7 +72,7 @@ export class Player {
         if (player.x < -player.width) player.x = VIRTUAL_WIDTH;
         if (player.x > VIRTUAL_WIDTH) player.x = -player.width;
       } else {
-        player.x = Math.max(0, Math.min(VIRTUAL_WIDTH - player.size, player.x));
+        player.x = Math.max(player.width / 2, Math.min(VIRTUAL_WIDTH - player.width / 2, player.x));
       }
 
       player.cost = Math.min(player.maxCost, player.cost + dt * player.costRate);
@@ -84,6 +84,6 @@ export class Player {
     if (!this.alive) return;
     ctx.fillStyle = this.color;
     const y = this.y;
-    ctx.fillRect(this.x, y, this.width, this.height);
+    ctx.fillRect(this.x - this.width / 2, y - this.height / 2, this.width, this.height);
   }
 }

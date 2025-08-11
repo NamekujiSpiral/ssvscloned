@@ -40,11 +40,11 @@ import {
   let autoOpponent = false;
   window.selectedPlanet = 0; // 選択中のわくせい
 
-  let p1 = new Player(VIRTUAL_HEIGHT - VIRTUAL_BUTTON_HEIGHT - MARGIN_VIRTUAL - 200, window.selectedChar1, PLAYER_COLORS[0], characters);
-  let p2 = new Player(VIRTUAL_BUTTON_HEIGHT + MARGIN_VIRTUAL, window.selectedChar2, PLAYER_COLORS[1], characters);
+  let p1 = new Player(VIRTUAL_HEIGHT - VIRTUAL_BUTTON_HEIGHT - MARGIN_VIRTUAL - 120, window.selectedChar1, PLAYER_COLORS[0], characters);
+  let p2 = new Player(VIRTUAL_BUTTON_HEIGHT + MARGIN_VIRTUAL + 120, window.selectedChar2, PLAYER_COLORS[1], characters);
   const players = [p1, p2];
   let bullets = [];
-let turrets = [];
+  let turrets = [];
   let pItems = [];
   let boxes = [];
 
@@ -73,8 +73,9 @@ let turrets = [];
     player.cost -= skill.cost;
     player.cooldowns[idx] = COOLDOWN_DURATION;
 
-    const bx = player.x + player.width / 2;
-    let by = player.y + (player === p1 ? -player.size / 2 : player.size / 2);
+    const bx = player.x;
+    const forwardOffset = 30;
+    let by = player.y + (player === p1 ? -player.height / 2 - forwardOffset : player.height / 2 + forwardOffset);
 
 
     if (skill.name === 'スーパーヘヴィ') by += (player === p1 ? 50 : -50);
@@ -85,6 +86,22 @@ let turrets = [];
       const vy = (player === p1 ? -mag * Math.cos(ang) : mag * Math.cos(ang));
       bullets.push(new Bullet(bx, by, mag * Math.sin(ang), vy, player, skill));
       bullets.push(new Bullet(bx, by, -mag * Math.sin(ang), vy, player, skill));
+      return;
+    }
+    if (skill.behavior === 'tripleStar') {
+      by += (player === p1 ? 40 : -40);
+      const sideSpeed = skill.speed;
+      const angle = Math.PI / 15;
+      const direction = (player === p1 ? -1 : 1);
+
+      // 中央の弾 (スキル本来の速度とサイズ)
+      bullets.push(new Bullet(bx, by, 0, direction * skill.speed, player, skill));
+
+      const sideSkill = { ...skill, size: 60 };
+      const vx = Math.sin(angle) * sideSpeed;
+      const vy = Math.cos(angle) * sideSpeed * direction;
+      bullets.push(new Bullet(bx, by, vx, vy, player, sideSkill));
+      bullets.push(new Bullet(bx, by, -vx, vy, player, sideSkill));
       return;
     }
     if (skill.behavior === 'trickDouble') {
@@ -183,8 +200,8 @@ let turrets = [];
           if (localX < MENU_WIDTH / 2) window.selectedChar1 = i;
           else window.selectedChar2 = i;
           // 再生成
-          p1 = new Player(VIRTUAL_HEIGHT - VIRTUAL_BUTTON_HEIGHT - MARGIN_VIRTUAL - 200, window.selectedChar1, PLAYER_COLORS[0], characters);
-          p2 = new Player(VIRTUAL_BUTTON_HEIGHT + MARGIN_VIRTUAL, window.selectedChar2, PLAYER_COLORS[1], characters);
+          p1 = new Player(VIRTUAL_HEIGHT - VIRTUAL_BUTTON_HEIGHT - MARGIN_VIRTUAL - 120, window.selectedChar1, PLAYER_COLORS[0], characters);
+          p2 = new Player(VIRTUAL_BUTTON_HEIGHT + MARGIN_VIRTUAL + 120, window.selectedChar2, PLAYER_COLORS[1], characters);
           players[0] = p1;
           players[1] = p2;
         }
