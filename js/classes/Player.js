@@ -15,7 +15,6 @@ export class Player {
     this.direction = 0;
     this.baseSpeed = 2.5;
     this.speed = this.baseSpeed;
-    if(y<VIRTUAL_HEIGHT/2) this.speed*=6;
     this.maxSpeed = this.baseSpeed * 1.5;
     this.pCount = 0;
     this.cost = 0;

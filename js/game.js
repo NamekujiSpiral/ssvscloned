@@ -38,7 +38,7 @@ import {
   window.selectedChar1 = 2; // P1の選択キャラをグローバルに
   window.selectedChar2 = 3; // P2の選択キャラをグローバルに
   let autoOpponent = false;
-  window.selectedPlanet = 0; // 選択中のわくせい
+  window.selectedPlanets = [0]; // 選択中のわくせい（複数選択可能）
 
   let p1 = new Player(VIRTUAL_HEIGHT - VIRTUAL_BUTTON_HEIGHT - MARGIN_VIRTUAL - 120, window.selectedChar1, PLAYER_COLORS[0], characters);
   let p2 = new Player(VIRTUAL_BUTTON_HEIGHT + MARGIN_VIRTUAL + 120, window.selectedChar2, PLAYER_COLORS[1], characters);
@@ -208,30 +208,32 @@ import {
       }
       // わくせい選択
       const planetBaseY = 150 + (characters.length + 2) * 100;
-      const planetY1 = planetBaseY;
-      const planetY2 = planetBaseY + 100;
-      const planetY3 = planetBaseY + 200;
-      const planetY4 = planetBaseY + 300;
-      const planetY5 = planetBaseY + 400;
-      const planetY6 = planetBaseY + 500;
+      const planetYPositions = [
+        planetBaseY,
+        planetBaseY + 100,
+        planetBaseY + 200,
+        planetBaseY + 300,
+        planetBaseY + 400,
+        planetBaseY + 500,
+        planetBaseY + 600,
+      ];
 
-      if (localY > planetY1 - 30 && localY < planetY1 + 30) {
-        window.selectedPlanet = 0;
-      }
-      if (localY > planetY2 - 30 && localY < planetY2 + 30) {
-        window.selectedPlanet = 1;
-      }
-      if (localY > planetY3 - 30 && localY < planetY3 + 30) {
-        window.selectedPlanet = 2;
-      }
-      if (localY > planetY4 - 30 && localY < planetY4 + 30) {
-        window.selectedPlanet = 3;
-      }
-      if (localY > planetY5 - 30 && localY < planetY5 + 30) {
-        window.selectedPlanet = 4;
-      }
-      if (localY > planetY6 - 30 && localY < planetY6 + 30) {
-        window.selectedPlanet = 5;
+      planetYPositions.forEach((planetY, index) => {
+        if (localY > planetY - 30 && localY < planetY + 30) {
+          if (index === 0) return; // Planet 0 cannot be deselected
+          const planetIndex = window.selectedPlanets.indexOf(index);
+          if (planetIndex > -1) {
+            window.selectedPlanets.splice(planetIndex, 1);
+          } else {
+            window.selectedPlanets.push(index);
+          }
+        }
+      });
+
+      // デバッグボタン
+      const debugButtonY = planetBaseY + planetYPositions.length * 100;
+      if (localY > debugButtonY - 30 && localY < debugButtonY + 30) {
+        gameTime += 10;
       }
 
       // 閉じるアイコン
@@ -302,19 +304,10 @@ import {
   function updateGameLogic(dt) {
     if (gameOver) return;
 
-    const isMirrorPlanet = window.selectedPlanet === 2;
-    const isMirrorPlanetB = window.selectedPlanet === 3;
-    const isTrampolinePlanet = window.selectedPlanet === 4;
-    const isTrampolinePlanetB = window.selectedPlanet === 5;
-
-    // わくせい効果
-    if (window.selectedPlanet === 1) {
-      p1.costRate = 0.75;
-      p2.costRate = 0.75;
-    } else {
-      p1.costRate = 0.5;
-      p2.costRate = 0.5;
-    }
+    const isMirrorPlanet = window.selectedPlanets.includes(2);
+    const isMirrorPlanetB = window.selectedPlanets.includes(3);
+    const isTrampolinePlanet = window.selectedPlanets.includes(4);
+    const isTrampolinePlanetB = window.selectedPlanets.includes(5);
 
     // 1. 箱の出現
     if (nextSpawn < SPAWN_COUNT && gameTime >= SPAWN_TIMES[nextSpawn]) {
@@ -374,18 +367,39 @@ import {
       return !b.isOff();
     });
 
-    // 4. Pアイテム取得
+    // 4. Pアイテム取得とわくせい効果
+    players.forEach(pl => {
+      pl.speed = pl.baseSpeed;
+      pl.costRate = 0.5;
+    });
+
     pItems = pItems.filter(pi => {
       let caught = false;
       players.forEach(pl => {
         if (CollisionDetector.checkPItemPlayerCollision(pi, pl)) {
           pl.pCount++;
-          pl.speed = Math.min(pl.maxSpeed, pl.baseSpeed + 0.2 * pl.pCount);
           caught = true;
         }
       });
       return !caught && !pi.isOff();
     });
+
+    players.forEach(pl => {
+        pl.speed = Math.min(pl.maxSpeed, pl.baseSpeed + 0.2 * pl.pCount);
+    });
+
+    if (window.selectedPlanets.includes(1)) {
+        players.forEach(pl => {
+            pl.costRate *= 1.5;
+        });
+    }
+    if (window.selectedPlanets.includes(6)) {
+        players.forEach(pl => {
+            pl.costRate *= 1.5;
+            pl.speed *= 1.5;
+        });
+        p2.speed *= 3;
+    }
 
     // 5. ゲームオーバー判定
     players.forEach(player => {

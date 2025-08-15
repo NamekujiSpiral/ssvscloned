@@ -158,25 +158,29 @@ export class UIRenderer {
 
       // わくせい選択
       const planetBaseY = 150 + (characters.length + 2) * 100; // スペースを追加
-      const planetY1 = planetBaseY;
-      const planetY2 = planetBaseY + 100;
-      const planetY3 = planetBaseY + 200;
-      const planetY4 = planetBaseY + 300;
+      const planetNames = [
+        'デフォルト',
+        'スピードわくせいB',
+        'ミラーわくせい',
+        'ミラーわくせいB',
+        'トランポリンわくせい',
+        'トランポリンわくせいB',
+        'スピードわくせいD'
+      ];
 
       this.ctx.fillStyle = '#fff';
       this.ctx.fillText('わくせい', menuX + 20, planetBaseY - 50);
-      this.ctx.fillStyle = window.selectedPlanet === 0 ? '#0f0' : '#fff';
-      this.ctx.fillText('デフォルト', menuX + 40, planetY1);
-      this.ctx.fillStyle = window.selectedPlanet === 1 ? '#0f0' : '#fff';
-      this.ctx.fillText('スピードわくせいB', menuX + 40, planetY2);
-      this.ctx.fillStyle = window.selectedPlanet === 2 ? '#0f0' : '#fff';
-      this.ctx.fillText('ミラーわくせい', menuX + 40, planetY3);
-      this.ctx.fillStyle = window.selectedPlanet === 3 ? '#0f0' : '#fff';
-      this.ctx.fillText('ミラーわくせいB', menuX + 40, planetY4);
-      this.ctx.fillStyle = window.selectedPlanet === 4 ? '#0f0' : '#fff';
-      this.ctx.fillText('トランポリンわくせい', menuX + 40, planetBaseY + 400);
-      this.ctx.fillStyle = window.selectedPlanet === 5 ? '#0f0' : '#fff';
-      this.ctx.fillText('トランポリンわくせいB', menuX + 40, planetBaseY + 500);
+
+      planetNames.forEach((name, index) => {
+        const planetY = planetBaseY + index * 100;
+        this.ctx.fillStyle = window.selectedPlanets.includes(index) ? '#0f0' : '#fff';
+        this.ctx.fillText(name, menuX + 40, planetY);
+      });
+
+      // デバッグボタン
+      const debugButtonY = planetBaseY + planetNames.length * 100;
+      this.ctx.fillStyle = '#fff';
+      this.ctx.fillText('時間+10s', menuX + 40, debugButtonY);
 
       // 閉じるアイコン（白固定）
       this.ctx.fillStyle = '#fff';
