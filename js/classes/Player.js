@@ -1,4 +1,5 @@
 import { VIRTUAL_WIDTH, VIRTUAL_HEIGHT } from '../constants.js';
+import { Particle } from './Particle.js';
 
 export class Player {
   constructor(y, charIndex, color, characters) {
@@ -14,6 +15,7 @@ export class Player {
     this.direction = 0;
     this.baseSpeed = 2.5;
     this.speed = this.baseSpeed;
+    if(y<VIRTUAL_HEIGHT/2) this.speed*=6;
     this.maxSpeed = this.baseSpeed * 1.5;
     this.pCount = 0;
     this.cost = 0;
@@ -21,9 +23,20 @@ export class Player {
     this.costRate = 0.5;
     this.cooldowns = this.skills.map(_ => 0);
     this.bounceOffsetY = 0;
+
+    this.isHit = false;
+    this.hitTime = 0;
+    this.hitDuration = 1.5; // seconds
+    this.shatterParticles = [];
   }
 
-    static updatePlayers(dt, gameTime, players, isMirrorPlanet = false, isTrampolinePlanet = false, isTrampolinePlanetB = false) {
+  onHit() {
+    if (this.isHit) return;
+    this.isHit = true;
+    this.hitTime = 0;
+  }
+
+  static updatePlayers(dt, gameTime, players, isMirrorPlanet = false, isTrampolinePlanet = false, isTrampolinePlanetB = false) {
     const [p1, p2] = players;
 
     // Y座標の計算
@@ -66,6 +79,22 @@ export class Player {
     players.forEach(player => {
       if (!player.alive) return;
 
+      if (player.isHit) {
+        player.hitTime += dt;
+        if (player.hitTime > player.hitDuration) {
+          player.alive = false;
+        }
+
+        if (player.hitTime > 0.2 && player.shatterParticles.length === 0) {
+          for (let i = 0; i < 100; i++) {
+            player.shatterParticles.push(new Particle(player.x, player.y, player.color));
+          }
+        }
+
+        player.shatterParticles.forEach(p => p.update());
+        return;
+      }
+
       player.x += player.direction * player.speed;
 
       if (isMirrorPlanet) {
@@ -82,8 +111,22 @@ export class Player {
 
   draw(ctx) {
     if (!this.alive) return;
-    ctx.fillStyle = this.color;
-    const y = this.y;
-    ctx.fillRect(this.x - this.width / 2, y - this.height / 2, this.width, this.height);
+
+    if (this.isHit) {
+      if (this.hitTime <= 0.2) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(10 * Math.PI / 180);
+        ctx.fillStyle = 'white';
+        ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
+        ctx.restore();
+      } else {
+        this.shatterParticles.forEach(p => p.draw(ctx));
+      }
+    } else {
+      ctx.fillStyle = this.color;
+      const y = this.y;
+      ctx.fillRect(this.x - this.width / 2, y - this.height / 2, this.width, this.height);
+    }
   }
 }

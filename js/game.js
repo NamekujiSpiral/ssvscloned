@@ -142,11 +142,6 @@ import {
     bullets.push(new Bullet(bx, by, 0, (player === p1 ? -skill.speed : skill.speed), player, skill));
   }
 
-  function onHit(target) {
-    gameOver = true;
-    breakTarget = target;
-  }
-
   function findNearest(items, player) {
     let minDistance = Infinity;
     let nearestItem = null;
@@ -305,6 +300,8 @@ import {
   canvas.addEventListener('pointercancel', handlePointerCancel);
 
   function updateGameLogic(dt) {
+    if (gameOver) return;
+
     const isMirrorPlanet = window.selectedPlanet === 2;
     const isMirrorPlanetB = window.selectedPlanet === 3;
     const isTrampolinePlanet = window.selectedPlanet === 4;
@@ -369,10 +366,8 @@ import {
 
       // プレイヤーへの衝突判定
       const targetPlayer = b.owner === p1 ? p2 : p1;
-      if (!targetPlayer.alive) return false;
-
-      if (CollisionDetector.checkBulletPlayerCollision(b, targetPlayer)) {
-        onHit(targetPlayer);
+      if (!targetPlayer.isHit && CollisionDetector.checkBulletPlayerCollision(b, targetPlayer)) {
+        targetPlayer.onHit();
         return false; // 弾を削除
       }
 
@@ -390,6 +385,14 @@ import {
         }
       });
       return !caught && !pi.isOff();
+    });
+
+    // 5. ゲームオーバー判定
+    players.forEach(player => {
+      if (!player.alive && !gameOver) {
+        gameOver = true;
+        breakTarget = players.find(p => p.alive);
+      }
     });
   }
 
@@ -409,7 +412,7 @@ import {
       breakProgress += dt;
       const t = Math.min(1, breakProgress / BREAK_DURATION);
       // drawGameElements内でctx.scaleが適用されているため、ここではscaleを考慮しない
-      breakTarget.draw(ctx, 1 - t, 1 - t);
+      // breakTarget.draw(ctx, 1 - t, 1 - t); // この行は不要になりました
       if (t >= 1) {
         ctx.restore(); // ゲーム要素のスケールを元に戻す
         // ゲームオーバー画面表示
@@ -425,7 +428,7 @@ import {
         ctx.font = `bold ${winTextFontSize}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText((breakTarget === p1 ? '上側' : '下側') + 'の勝利！', canvas.width / 2, canvas.height * 0.4);
+        ctx.fillText((breakTarget === p1 ? '下側' : '上側') + 'の勝利！', canvas.width / 2, canvas.height * 0.4);
 
         // リスタートボタン
         ctx.font = `bold ${restartTextFontSize}px Arial`;
@@ -446,10 +449,7 @@ import {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height); // 画面クリアをここで行う
 
-    if (!gameOver) {
-      updateGameLogic(dt);
-    }
-
+    updateGameLogic(dt);
     drawGameElements(dt);
     uiRenderer.draw(p1, p2, pressedButtons, menuOpen, menuX, autoOpponent);
 
