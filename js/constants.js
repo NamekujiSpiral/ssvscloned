@@ -7,6 +7,6 @@ export const MENU_WIDTH = 800;
 export const SWIPE_THRESHOLD = 100;
 export const BREAK_DURATION = 0.5;
 export const BOX_SIZE = 170;
-export const PLAYER_COLORS = ['#4af', '#fa4'];
+export const PLAYER_COLORS = ['#27afeb', '#ee534f'];
 export const SPAWN_COUNT = 13;
 export const SPAWN_TIMES = [3, 7, 12, 18, 25, 33, 42, 52, 63, 75, 88, 102, 117];

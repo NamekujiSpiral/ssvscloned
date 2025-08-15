@@ -8,7 +8,7 @@ export class PItem {
     this.vy = 200; // 仮想単位/秒
     if (this.owner.y < VIRTUAL_HEIGHT / 2) this.vy *= -1; // P2のアイテムは上向きに移動
     this.size = 70;
-    this.color = '#ff0';
+    this.color = '#ef8503';
   }
 
   update(dt) {

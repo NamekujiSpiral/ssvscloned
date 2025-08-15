@@ -34,7 +34,7 @@ export class Box {
     const shakeOffset = this.shakeTime > 0
       ? Math.sin((this.shakeTime / this.shakeDuration / 2) * Math.PI * 4) * 10 * this.shakeDirection
       : 0;
-    ctx.fillStyle = "rgb(255, 238, 0)";
+    ctx.fillStyle = "#ffd54f";
     ctx.fillRect(this.x - this.size / 2, this.y - this.size / 2 + shakeOffset, this.size, this.size);
     ctx.fillStyle = '#000';
     ctx.textAlign = 'center';

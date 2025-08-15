@@ -78,7 +78,7 @@ export class UIRenderer {
         for (let s = 0; s < maxP; s++) {
           const cx = startX + s * gap;
           const cy = bhPx * 0.7;
-          this.drawStar(cx, cy, starSize / 2, s < haveP ? '#ff0' : 'rgba(100,100,100,1)');
+          this.drawStar(cx, cy, starSize / 2, s < haveP ? '#ef8503' : 'rgba(100,100,100,1)');
         }
       }
       // p1
@@ -92,7 +92,7 @@ export class UIRenderer {
         for (let s = 0; s < maxP; s++) {
           const cx = startX + s * gap;
           const cy = y0m + bhPx * 0.7;
-          this.drawStar(cx, cy, starSize / 2, s < haveP ? '#ff0' : 'rgba(100,100,100,1)');
+          this.drawStar(cx, cy, starSize / 2, s < haveP ? '#ef8503' : 'rgba(100,100,100,1)');
         }
       }
     }
