@@ -60,8 +60,8 @@ export class UIRenderer {
       // 技名
       this.ctx.fillStyle = '#fff';
       this.ctx.font = `${Math.floor(bhPx * 0.22)}px Gonta`;
-      this.ctx.fillText(skill2.name, x0 + bwPx / 2, bhPx * 0.25);
-      this.ctx.fillText(skill1.name, x0 + bwPx / 2, y0m + bhPx * 0.25);
+      this.ctx.fillText(skill2.name, x0 + bwPx / 2, bhPx * 0.3);
+      this.ctx.fillText(skill1.name, x0 + bwPx / 2, y0m + bhPx * 0.3);
 
       // コスト or 必要Pの星形表示
       const starSize = 70 * 2 * 0.8; // =70
@@ -70,7 +70,7 @@ export class UIRenderer {
       // p2
       if (unlocked2) {
         this.ctx.font = `${Math.floor(bhPx * 0.3)}px Gonta`;
-        this.ctx.fillText(skill2.cost, x0 + bwPx / 2, bhPx * 0.7);
+        this.ctx.fillText(skill2.cost, x0 + bwPx / 2, bhPx * 0.8);
       } else {
         const maxP = skill2.unlockP;
         const haveP = p2.pCount - (i > 0 ? p2.skills[i - 1]._cumUnlockP : 0);
@@ -84,7 +84,7 @@ export class UIRenderer {
       // p1
       if (unlocked1) {
         this.ctx.font = `${Math.floor(bhPx * 0.3)}px Gonta`;
-        this.ctx.fillText(skill1.cost, x0 + bwPx / 2, y0m + bhPx * 0.7);
+        this.ctx.fillText(skill1.cost, x0 + bwPx / 2, y0m + bhPx * 0.8);
       } else {
         const maxP = skill1.unlockP;
         const haveP = p1.pCount - (i > 0 ? p1.skills[i - 1]._cumUnlockP : 0);
