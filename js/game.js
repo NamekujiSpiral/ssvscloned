@@ -398,7 +398,6 @@ import {
             pl.costRate *= 1.5;
             pl.speed *= 1.5;
         });
-        p2.speed *= 3;
     }
 
     // 5. ゲームオーバー判定
