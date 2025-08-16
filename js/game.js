@@ -362,6 +362,8 @@ import {
       if (CollisionDetector.checkBulletPlayerCollision(b, targetPlayer)) {
         if (!targetPlayer.isHit) {
           targetPlayer.onHit();
+          p1.direction = 0;
+          p2.direction = 0;
         }
         return false; // 弾を削除
       }

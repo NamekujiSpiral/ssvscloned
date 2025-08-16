@@ -26,8 +26,58 @@ export class UIRenderer {
     this.scaleY = dh / VIRTUAL_HEIGHT;
   }
 
+  drawCostBar(player, y) {
+    const barH = 130;
+    const segmentWidth = VIRTUAL_WIDTH / player.maxCost;
+    const segmentMargin = 8;
+    const cornerRadius = 10;
+    const barY = y;
+    const barHeight = barH;
+    const verticalMargin = 4; // 上下のマージン
+
+    const intCost = Math.floor(player.cost);
+
+    // 1. 最背面: うっすい紺色の長方形
+    this.ctx.fillStyle = 'rgba(0, 0, 50, 0.2)';
+    this.ctx.fillRect(0, barY, VIRTUAL_WIDTH, barHeight);
+
+    // 2. 中間: 10個の角丸長方形 (#2f2f31)
+    this.ctx.lineWidth = 8;
+    for (let i = 0; i < player.maxCost; i++) {
+        const x = i * segmentWidth + segmentMargin / 2;
+        const w = segmentWidth - segmentMargin;
+        
+        // 溜まっていない部分
+        this.ctx.fillStyle = '#2f2f31';
+        this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+        
+        this.ctx.beginPath();
+        this.ctx.roundRect(x, barY + verticalMargin, w, barHeight - verticalMargin * 2, cornerRadius);
+        this.ctx.fill();
+        this.ctx.stroke();
+    }
+    
+    // 3. 溜まった分だけプレイヤーカラーで表示
+    for (let i = 0; i < intCost; i++) {
+        const x = i * segmentWidth + segmentMargin / 2;
+        const w = segmentWidth - segmentMargin;
+
+        this.ctx.fillStyle = player.color;
+        this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+
+        this.ctx.beginPath();
+        this.ctx.roundRect(x, barY + verticalMargin, w, barHeight - verticalMargin * 2, cornerRadius);
+        this.ctx.fill();
+        this.ctx.stroke();
+    }
+
+    // 4. 最前面: うすいプレイヤーカラーのバー
+    const totalProgressWidth = (VIRTUAL_WIDTH / player.maxCost) * player.cost;
+    this.ctx.fillStyle = this.hexToRgba(player.color, 0.3); // うすいプレイヤーカラー
+    this.ctx.fillRect(0, barY, totalProgressWidth, barHeight);
+  }
+
   draw(p1, p2, pressedButtons, menuOpen, menuX, autoOpponent) {
-    // this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height); // ここを削除
     this.ctx.save();
     this.ctx.scale(this.scaleX, this.scaleY);
 
@@ -98,48 +148,19 @@ export class UIRenderer {
     }
 
     const barH = 130;
+    const barMargin = 10; // Margin between bar and buttons
 
-    // Player 2 cost bar
-    const p2IntCost = Math.floor(p2.cost);
-    const p2FracCost = p2.cost - p2IntCost;
-    const p2IntWidth = VIRTUAL_WIDTH * (p2IntCost / p2.maxCost);
-    const p2FracWidth = VIRTUAL_WIDTH * (p2FracCost / p2.maxCost);
-    this.ctx.fillStyle = p2.color;
-    this.ctx.fillRect(0, bhPx + 2, p2IntWidth, barH);
-    this.ctx.fillStyle = this.hexToRgba(p2.color, 0.4);
-    this.ctx.fillRect(p2IntWidth, bhPx + 2, p2FracWidth, barH);
-    if (p2.cost >= p2.maxCost) { this.ctx.fillStyle = 'rgba(255,255,255,0.3)'; this.ctx.fillRect(0, bhPx + 2, VIRTUAL_WIDTH, barH); }
+    // Player cost bars
+    this.drawCostBar(p2, bhPx + barMargin);
+    this.drawCostBar(p1, VIRTUAL_HEIGHT - bhPx - barH - barMargin);
 
-    // Player 1 cost bar
-    const p1IntCost = Math.floor(p1.cost);
-    const p1FracCost = p1.cost - p1IntCost;
-    const p1IntWidth = VIRTUAL_WIDTH * (p1IntCost / p1.maxCost);
-    const p1FracWidth = VIRTUAL_WIDTH * (p1FracCost / p1.maxCost);
-    this.ctx.fillStyle = p1.color;
-    this.ctx.fillRect(0, VIRTUAL_HEIGHT - bhPx - 2 - barH, p1IntWidth, barH);
-    this.ctx.fillStyle = this.hexToRgba(p1.color, 0.4);
-    this.ctx.fillRect(p1IntWidth, VIRTUAL_HEIGHT - bhPx - 2 - barH, p1FracWidth, barH);
-    if (p1.cost >= p1.maxCost) { this.ctx.fillStyle = 'rgba(255,255,255,0.3)'; this.ctx.fillRect(0, VIRTUAL_HEIGHT - bhPx - 2 - barH, VIRTUAL_WIDTH, barH); }
-
-    this.ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-    this.ctx.lineWidth = 20;
-    for (let j = 1; j < 10; j++) {
-      const xL = j * (VIRTUAL_WIDTH / 10);
-      this.ctx.beginPath();
-      this.ctx.moveTo(xL, bhPx + 2);
-      this.ctx.lineTo(xL, bhPx + 2 + barH);
-      this.ctx.stroke();
-      this.ctx.beginPath();
-      this.ctx.moveTo(xL, VIRTUAL_HEIGHT - bhPx - 2 - barH);
-      this.ctx.lineTo(xL, VIRTUAL_HEIGHT - bhPx - 2);
-      this.ctx.stroke();
-    }
+    // Text on top of bars
     this.ctx.fillStyle = '#fff';
     this.ctx.font = `${barH * 0.8}px Gonta`;
     this.ctx.textAlign = 'center';
     this.ctx.textBaseline = 'middle';
-    this.ctx.fillText(`${Math.floor(p2.cost)}/${p2.maxCost}`, VIRTUAL_WIDTH / 2, bhPx + 2 + barH / 2);
-    this.ctx.fillText(`${Math.floor(p1.cost)}/${p1.maxCost}`, VIRTUAL_WIDTH / 2, VIRTUAL_HEIGHT - bhPx - 2 - barH / 2);
+    this.ctx.fillText(`${Math.floor(p2.cost)}/${p2.maxCost}`, VIRTUAL_WIDTH / 2, bhPx + barMargin + barH / 2);
+    this.ctx.fillText(`${Math.floor(p1.cost)}/${p1.maxCost}`, VIRTUAL_WIDTH / 2, VIRTUAL_HEIGHT - bhPx - barMargin - barH / 2);
 
     // メニュー描画
     if (menuOpen) {

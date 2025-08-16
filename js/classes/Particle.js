@@ -7,12 +7,12 @@ export class Particle {
     const baseAngle = Math.PI / 2 * dir;
     const spread = Math.PI / 3;
     const angle = baseAngle + (Math.random() - 0.5) * spread;
-    const speed = Math.random() * 1.6;
+    const speed = Math.random() * 2;
 
     this.vx = Math.cos(angle) * speed;
     this.vy = Math.sin(angle) * speed;
     this.gravity = 0.5;
-    this.life = 100;
+    this.life = 100 -  Math.random() * 10;
   }
 
   update() {
