@@ -359,8 +359,10 @@ import {
 
       // プレイヤーへの衝突判定
       const targetPlayer = b.owner === p1 ? p2 : p1;
-      if (!targetPlayer.isHit && CollisionDetector.checkBulletPlayerCollision(b, targetPlayer)) {
-        targetPlayer.onHit();
+      if (CollisionDetector.checkBulletPlayerCollision(b, targetPlayer)) {
+        if (!targetPlayer.isHit) {
+          targetPlayer.onHit();
+        }
         return false; // 弾を削除
       }
 

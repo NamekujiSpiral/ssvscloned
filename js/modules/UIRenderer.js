@@ -98,14 +98,31 @@ export class UIRenderer {
     }
 
     const barH = 130;
+
+    // Player 2 cost bar
+    const p2IntCost = Math.floor(p2.cost);
+    const p2FracCost = p2.cost - p2IntCost;
+    const p2IntWidth = VIRTUAL_WIDTH * (p2IntCost / p2.maxCost);
+    const p2FracWidth = VIRTUAL_WIDTH * (p2FracCost / p2.maxCost);
     this.ctx.fillStyle = p2.color;
-    this.ctx.fillRect(0, bhPx + 2, VIRTUAL_WIDTH * (p2.cost / p2.maxCost), barH);
+    this.ctx.fillRect(0, bhPx + 2, p2IntWidth, barH);
+    this.ctx.fillStyle = this.hexToRgba(p2.color, 0.4);
+    this.ctx.fillRect(p2IntWidth, bhPx + 2, p2FracWidth, barH);
     if (p2.cost >= p2.maxCost) { this.ctx.fillStyle = 'rgba(255,255,255,0.3)'; this.ctx.fillRect(0, bhPx + 2, VIRTUAL_WIDTH, barH); }
+
+    // Player 1 cost bar
+    const p1IntCost = Math.floor(p1.cost);
+    const p1FracCost = p1.cost - p1IntCost;
+    const p1IntWidth = VIRTUAL_WIDTH * (p1IntCost / p1.maxCost);
+    const p1FracWidth = VIRTUAL_WIDTH * (p1FracCost / p1.maxCost);
     this.ctx.fillStyle = p1.color;
-    this.ctx.fillRect(0, VIRTUAL_HEIGHT - bhPx - 2 - barH, VIRTUAL_WIDTH * (p1.cost / p1.maxCost), barH);
+    this.ctx.fillRect(0, VIRTUAL_HEIGHT - bhPx - 2 - barH, p1IntWidth, barH);
+    this.ctx.fillStyle = this.hexToRgba(p1.color, 0.4);
+    this.ctx.fillRect(p1IntWidth, VIRTUAL_HEIGHT - bhPx - 2 - barH, p1FracWidth, barH);
     if (p1.cost >= p1.maxCost) { this.ctx.fillStyle = 'rgba(255,255,255,0.3)'; this.ctx.fillRect(0, VIRTUAL_HEIGHT - bhPx - 2 - barH, VIRTUAL_WIDTH, barH); }
+
     this.ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-    this.ctx.lineWidth = 5;
+    this.ctx.lineWidth = 20;
     for (let j = 1; j < 10; j++) {
       const xL = j * (VIRTUAL_WIDTH / 10);
       this.ctx.beginPath();
@@ -210,5 +227,12 @@ export class UIRenderer {
     this.ctx.fillStyle = color;
     this.ctx.fill();
     this.ctx.restore();
+  }
+
+  hexToRgba(hex, alpha) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
 }

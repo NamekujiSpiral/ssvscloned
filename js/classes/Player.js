@@ -22,6 +22,7 @@ export class Player {
     this.costRate = 0.5;
     this.cooldowns = this.skills.map(_ => 0);
     this.bounceOffsetY = 0;
+    this.dir = y > VIRTUAL_HEIGHT / 2 ? 1 : -1 ;
 
     this.isHit = false;
     this.hitTime = 0;
@@ -85,8 +86,8 @@ export class Player {
         }
 
         if (player.hitTime > 0.2 && player.shatterParticles.length === 0) {
-          for (let i = 0; i < 100; i++) {
-            player.shatterParticles.push(new Particle(player.x, player.y, player.color));
+          for (let i = 0; i < 50; i++) {
+            player.shatterParticles.push(new Particle(player.x, player.y, player.color, player.dir));
           }
         }
 
