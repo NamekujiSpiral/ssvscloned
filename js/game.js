@@ -432,23 +432,23 @@ import {
       if (t >= 1) {
         ctx.restore(); // ゲーム要素のスケールを元に戻す
         // ゲームオーバー画面表示
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
         ctx.fillStyle = 'black';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
         ctx.fillStyle = 'white';
 
-        // テキストのフォントサイズと位置をcanvas.heightに基づいて調整
-        const winTextFontSize = canvas.height * 0.08; // 例: 高さの8%に調整
-        const restartTextFontSize = canvas.height * 0.04; // 例: 高さの4%に調整
+        // テキストのフォントサイズと位置をVIRTUAL_HEIGHTに基づいて調整
+        const winTextFontSize = VIRTUAL_HEIGHT * 0.08; // 例: 高さの8%に調整
+        const restartTextFontSize = VIRTUAL_HEIGHT * 0.04; // 例: 高さの4%に調整
 
         ctx.font = `bold ${winTextFontSize}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText((breakTarget === p1 ? '下側' : '上側') + 'の勝利！', canvas.width / 2, canvas.height * 0.4);
+        ctx.fillText((breakTarget === p1 ? '下側' : '上側') + 'の勝利！', VIRTUAL_WIDTH / 2, VIRTUAL_HEIGHT * 0.4);
 
         // リスタートボタン
         ctx.font = `bold ${restartTextFontSize}px Arial`;
-        ctx.fillText('クリックしてリスタート', canvas.width / 2, canvas.height * 0.6);
+        ctx.fillText('クリックしてリスタート', VIRTUAL_WIDTH / 2, VIRTUAL_HEIGHT * 0.6);
 
         canvas.onclick = () => location.reload();
         return;
