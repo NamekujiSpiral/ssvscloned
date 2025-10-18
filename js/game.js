@@ -415,7 +415,6 @@ import {
 
   function drawGameElements(dt) {
     ctx.save();
-    ctx.scale(uiRenderer.scaleX, uiRenderer.scaleY);
 
     // 描画順序: 箱 → キャラクター → 弾 → Pアイテム
     boxes.forEach(box => box.draw(ctx));
@@ -464,7 +463,7 @@ import {
     last = now;
     gameTime += dt;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height); // 画面クリアをここで行う
+    ctx.clearRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT); // 画面クリアをここで行う
 
     updateGameLogic(dt);
     drawGameElements(dt);

@@ -13,18 +13,52 @@ export class UIRenderer {
     this.resize();
   }
 
-  resize() {
-    const w = window.innerWidth, h = window.innerHeight;
-    const ratio = VIRTUAL_WIDTH / VIRTUAL_HEIGHT;
-    let dw, dh;
-    if (w / h > ratio) { dh = h; dw = dh * ratio; } else { dw = w; dh = dw / ratio; }
-    this.canvas.width = dw;
-    this.canvas.height = dh;
-    this.canvas.style.width = dw + 'px';
-    this.canvas.style.height = dh + 'px';
-    this.scaleX = dw / VIRTUAL_WIDTH;
-    this.scaleY = dh / VIRTUAL_HEIGHT;
+resize() {
+
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const ratio = VIRTUAL_WIDTH / VIRTUAL_HEIGHT;
+  let dw, dh;
+
+  if (w / h > ratio) {
+    dh = h;
+    dw = Math.round(dh * ratio);
+  } else {
+    dw = w;
+    dh = Math.round(dw / ratio);
   }
+
+  this.canvas.style.width  = dw + 'px';
+  this.canvas.style.height = dh + 'px';
+
+  // CSS 中央寄せは CSS に任せる
+  this.canvas.style.left = '50%';
+  this.canvas.style.top  = '50%';
+  this.canvas.style.transform = 'translate(-50%,-50%)';
+
+  const dpr = window.devicePixelRatio || 1;
+  const bufW = Math.max(1, Math.round(dw * dpr));
+  const bufH = Math.max(1, Math.round(dh * dpr));
+  this.canvas.width  = bufW;
+  this.canvas.height = bufH;
+
+  this.scaleX = dw / VIRTUAL_WIDTH;
+  this.scaleY = dh / VIRTUAL_HEIGHT;
+
+  this.ctx = this.canvas.getContext('2d');
+
+  // 仮想→内部ピクセルの変換を一度だけ設定（これで以降は仮想座標で描ける）
+  this.ctx.setTransform(this.scaleX * dpr, 0, 0, this.scaleY * dpr, 0, 0);
+
+  // ピクセルアートなら false
+  this.ctx.imageSmoothingEnabled = true;
+
+  // デバッグ出力（必要ならコメントアウト）
+  // console.log('resize', {dw, dh, bufW, bufH, dpr, scaleX: this.scaleX, scaleY: this.scaleY, transform: this.ctx.getTransform()});
+}
+
+
+
 
   drawCostBar(player, y) {
     const barH = 130;
@@ -79,7 +113,6 @@ export class UIRenderer {
 
   draw(p1, p2, pressedButtons, menuOpen, menuX, autoOpponent) {
     this.ctx.save();
-    this.ctx.scale(this.scaleX, this.scaleY);
 
     // UI描画
     const bhPx = VIRTUAL_BUTTON_HEIGHT;
