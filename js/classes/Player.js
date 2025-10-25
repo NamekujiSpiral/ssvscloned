@@ -28,6 +28,8 @@ export class Player {
     this.hitTime = 0;
     this.hitDuration = 1.5; // seconds
     this.shatterParticles = [];
+
+    this.multiShot = null;
   }
 
   onHit() {

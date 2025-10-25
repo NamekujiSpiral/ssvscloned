@@ -54,6 +54,13 @@ export const characters = [
       { name: 'トリプルスター', cost: 5, size: 80, speed: 7.5, behavior: 'tripleStar', unlockP: 2 },
       { name: 'プチだんまく', cost: 7, size: 30, speed: 4, behavior: 'pdanmaku', unlockP: 2 }
     ]
+  },
+  {
+    name: 'タコ', skills: [
+      { name: 'カーブショット', cost: 2, size: 60, speed: 9, behavior: 'curveShot', unlockP: 0 },
+      { name: 'さんれんぱつ', cost: 5, size: 60, speed: 12, behavior: 'tripleShot', unlockP: 2 },
+      { name: 'はっぽんあし', cost: 8, size: 60, speed: 6.5, behavior: 'eightLegs', unlockP: 2 }
+    ]
   }
 ];
 

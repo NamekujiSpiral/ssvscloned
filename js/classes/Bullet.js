@@ -12,9 +12,28 @@ export class Bullet {
     this.behavior = skill.behavior;
     this.passed = false;
     this.planetEffectApplied = false; // わくせい効果が適用されたか
+
+    // for curveShot and eightLegs
+    this.life = 0;
+    this.initialX = x;
+    this.skill = skill; // skill has amplitude and frequency
   }
 
   update(dt, isMirrorPlanet = false, isMirrorPlanetB = false) {
+    this.life += dt;
+
+    if (this.behavior === 'curveShot') {
+      const amplitude = 90;
+      const frequency = 6.28;
+      this.x = this.initialX + amplitude * Math.sin(this.life * frequency);
+    } else if (this.behavior === 'eightLegs') {
+      const amplitude = (this.skill.shotIndex || 1) * 35;
+      const frequency = 5;
+      this.x = this.initialX + amplitude * Math.sin(this.life * frequency);
+    } else {
+      this.x += this.vx * dt * 60;
+    }
+
     if (this.behavior === 'turnAim' && !this.passed) {
       if ((this.vy < 0 && this.y < VIRTUAL_HEIGHT / 2) || (this.vy > 0 && this.y > VIRTUAL_HEIGHT / 2)) {
         this.passed = true;
@@ -43,7 +62,6 @@ export class Bullet {
         this.size = Math.min(600, this.size + growthRate * dt);
       }
     }
-    this.x += this.vx * dt * 60;
     this.y += this.vy * dt * 60;
 
     if (isMirrorPlanet) {

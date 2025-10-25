@@ -35,7 +35,7 @@ import {
   const pressedButtons = new Map();
 
   // 選択キャラ
-  window.selectedChar1 = 2; // P1の選択キャラをグローバルに
+  window.selectedChar1 = 8; // P1の選択キャラをグローバルに
   window.selectedChar2 = 3; // P2の選択キャラをグローバルに
   let autoOpponent = false;
   window.selectedPlanets = [0]; // 選択中のわくせい（複数選択可能）
@@ -137,6 +137,16 @@ import {
       const vx = (dx / distance) * skill.speed;
       const vy = (dy / distance) * skill.speed;
       bullets.push(new Bullet(bx, by, vx, vy, player, skill));
+      return;
+    }
+    if (skill.behavior === 'tripleShot') {
+      player.multiShot = { remaining: 2, skill: skill, timer: 0.2 };
+      bullets.push(new Bullet(bx, by, 0, (player === p1 ? -skill.speed : skill.speed), player, skill));
+      return;
+    }
+    if (skill.behavior === 'eightLegs') {
+      player.multiShot = { remaining: 7, skill: skill, timer: 0.2, shotIndex: 1 };
+      bullets.push(new Bullet(bx, by, 0, (player === p1 ? -skill.speed : skill.speed), player, { ...skill, shotIndex: 1 }));
       return;
     }
     bullets.push(new Bullet(bx, by, 0, (player === p1 ? -skill.speed : skill.speed), player, skill));
@@ -321,6 +331,34 @@ import {
 
     // 2. 更新
     Player.updatePlayers(dt, gameTime, players, isMirrorPlanet, isTrampolinePlanet, isTrampolinePlanetB);
+
+    players.forEach(player => {
+      if (player.multiShot && player.multiShot.remaining > 0) {
+        player.multiShot.timer -= dt;
+        if (player.multiShot.timer <= 0) {
+          player.multiShot.remaining--;
+          player.multiShot.timer = 0.2; // reset timer
+
+          const skill = player.multiShot.skill;
+          const bx = player.x;
+          const forwardOffset = 30;
+          let by = player.y + (player === p1 ? -player.height / 2 - forwardOffset : player.height / 2 + forwardOffset);
+
+          let shotSkill = skill;
+          if (skill.behavior === 'eightLegs') {
+            player.multiShot.shotIndex++;
+            shotSkill = { ...skill, shotIndex: player.multiShot.shotIndex };
+          }
+          
+          bullets.push(new Bullet(bx, by, 0, (player === p1 ? -shotSkill.speed : shotSkill.speed), player, shotSkill));
+
+          if (player.multiShot.remaining === 0) {
+            player.multiShot = null;
+          }
+        }
+      }
+    });
+
     bullets.forEach(b => b.update(dt, isMirrorPlanet, isMirrorPlanetB));
     turrets.forEach(t => t.update(bullets));
     pItems.forEach(pi => pi.update(dt));
